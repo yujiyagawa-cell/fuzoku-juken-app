@@ -14,6 +14,7 @@ import { Results } from './screens/Results';
 import { SetSetup } from './screens/SetSetup';
 import { Songs } from './screens/Songs';
 import { Calendar } from './screens/Calendar';
+import { Start } from './screens/Start';
 import { BackButton, Header } from './ui/components';
 import { Icon } from './ui/icons';
 import { useMode } from './ui/mode';
@@ -25,6 +26,7 @@ import { navigate, useRoute } from './ui/router';
 //  #/play            練習（plan.ts に保存した計画を実行）
 //  #/results/<id>    セット結果
 //  #/calendar        がんばりカレンダー（子どもも見られる）
+//  #/start?env=…     設定つきURL（ほかのスマホで同じ設定から始める）／ #/start?fresh=1 ゼロから始める
 //  #/songs           うたの曲リスト（YouTube リンク）
 //  #/progress        進捗（レベル）一覧
 //  #/records         記録（推移・苦手）
@@ -61,7 +63,8 @@ export function App() {
   }, [ready, settings.voiceEnabled]);
 
   useEffect(() => {
-    if (ready && !settings.onboarded && route.path !== '/onboarding') navigate('/onboarding', { replace: true });
+    // 設定つきURL・ゼロから始めるURL（#/start）は、はじめての設定より先に開く
+    if (ready && !settings.onboarded && route.path !== '/onboarding' && route.path !== '/start') navigate('/onboarding', { replace: true });
   }, [ready, settings.onboarded, route.path]);
 
   useEffect(() => {
@@ -92,6 +95,9 @@ export function App() {
         break;
       case 'results':
         screen = <Results />;
+        break;
+      case 'start':
+        screen = <Start />;
         break;
       case 'calendar':
         screen = <Calendar />;

@@ -45,7 +45,7 @@ export function migrateSettings(saved: Partial<Settings>): Partial<Settings> {
   return out;
 }
 
-function merge(saved: Partial<Settings> | undefined): Settings {
+export function mergeSettings(saved: Partial<Settings> | undefined): Settings {
   if (!saved) return { ...DEFAULT_SETTINGS };
   saved = migrateSettings(saved);
   return {
@@ -59,7 +59,7 @@ function merge(saved: Partial<Settings> | undefined): Settings {
 
 export async function loadSettings(): Promise<Settings> {
   const row = await db.settings.get('main');
-  return merge(row?.value);
+  return mergeSettings(row?.value);
 }
 
 export async function saveSettings(s: Settings): Promise<void> {
@@ -91,7 +91,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const update = useCallback((patch: Partial<Settings>) => {
     setSettings((prev) => {
-      const next = merge({ ...prev, ...patch });
+      const next = mergeSettings({ ...prev, ...patch });
       saveSettings(next);
       return next;
     });

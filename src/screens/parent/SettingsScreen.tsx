@@ -9,6 +9,7 @@ import { Modal, Seg, Switch, useToast } from '../../ui/components';
 import { Icon } from '../../ui/icons';
 import { navigate } from '../../ui/router';
 import { ChipButtons, ParentScreen, SectionTitle } from './parentParts';
+import { ShareLinks } from './ShareLinks';
 
 // 設定：子どもの情報・試験日・本番再現ルール・読み上げ・ことば・書き足し・音声認識・性質の候補・データ
 
@@ -471,6 +472,11 @@ export function SettingsScreen() {
       <SectionTitle>性質の答えの候補</SectionTitle>
       <Group>
         <PropertyEditor s={s} update={update} />
+      </Group>
+
+      <SectionTitle>ほかのスマホで使う</SectionTitle>
+      <Group>
+        <ShareLinks onToast={showToast} />
       </Group>
 
       <SectionTitle>データ</SectionTitle>
