@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { db } from '../../core/db';
+import { db, nowIso, uid } from '../../core/db';
 import { fullReading } from '../../core/reading';
 import { makeRng } from '../../core/rng';
 import { useSettings } from '../../core/settings';
 import { listenLong } from '../../core/speech/asr';
+import { SILENT_PEAK, startRecording, type RecorderHandle, type RecordingResult } from '../../core/speech/recorder';
 import { cancelSpeak, speak } from '../../core/speech/tts';
 import { getVoiceState, markVoiceFailed } from '../../core/speech/voice';
 import type { Attempt, Judge, LatencySource } from '../../core/types';
@@ -113,6 +114,10 @@ function UtaQuestion({
   const alive = useRef(true);
   const pickedRef = useRef<string | null>(null);
   const parentStart = useRef<{ ms: number } | null>(null);
+  const recRef = useRef<RecorderHandle | null>(null);
+  const pendingRec = useRef<Promise<RecordingResult | null> | null>(null); // 止めたけれど、まだ保存していない録音
+  const [recUrl, setRecUrl] = useState('');
+  const [recNote, setRecNote] = useState('');
 
   const prompt =
     kind === 'uta-picture'
@@ -131,8 +136,8 @@ function UtaQuestion({
     latencySource?: LatencySource;
     transcript?: string;
     meta?: Record<string, unknown>;
-  }) => {
-    if (recorded.current) return;
+  }): Promise<Attempt | undefined> => {
+    if (recorded.current) return undefined;
     recorded.current = true;
     const a = await session.record({
       moduleId: 'uta',
@@ -149,13 +154,51 @@ function UtaQuestion({
       meta: input.meta
     });
     if (alive.current) setAttempt(a);
+    return a;
+  };
+
+  // ---- 録音（設定「うたを録音する」）：聞きはじめと いっしょに録り、歌い終わったら止めて保存 ----
+  const startRec = () => {
+    if (!settings.utaRecord || recRef.current) return;
+    void startRecording(SING_MAX_MS).then((h) => {
+      if (!h) return;
+      if (!alive.current || recorded.current) {
+        h.cancel();
+        return;
+      }
+      recRef.current = h;
+    });
+  };
+
+  const stopRec = (): Promise<RecordingResult | null> => {
+    const h = recRef.current;
+    recRef.current = null;
+    return h ? h.stop().catch(() => null) : Promise.resolve(null);
+  };
+
+  const keepRec = async (p: Promise<RecordingResult | null>, a: Attempt | undefined) => {
+    const r = await p;
+    if (!a || !r) return;
+    if (r.peak < SILENT_PEAK) {
+      if (alive.current) setRecNote('録音できませんでした（このスマホでは、声の判定と同時には録音できないようです）');
+      return;
+    }
+    const id = uid();
+    await db.recordings.put({ id, attemptId: a.id, mime: r.mime, dataUrl: r.dataUrl, durationMs: r.durationMs, createdAt: nowIso() });
+    await db.attempts.update(a.id, (x) => {
+      x.meta = { ...(x.meta || {}), recId: id, recMs: r.durationMs };
+    });
+    if (alive.current) setRecUrl(r.dataUrl);
   };
 
   // 歌い出しを待って、止まるまで聞き続ける → 歌のことばで判定
   const listenSinging = () => {
     t0.current = performance.now();
     setPhase('waiting');
-    if (!getVoiceState().available) return; // 保護者のボタンで続ける
+    if (!getVoiceState().available) {
+      startRec();
+      return; // 保護者のボタンで続ける（録音はする）
+    }
     const l = listenLong({
       startTimeoutMs: settings.silenceTimeoutSec * 1000,
       maxMs: SING_MAX_MS,
@@ -168,15 +211,18 @@ function UtaQuestion({
       onText: (t) => alive.current && setHeard(t)
     });
     stopRef.current = l.stop;
+    startRec();
     l.promise.then(async (r) => {
       stopRef.current = null;
       if (!alive.current || recorded.current) return;
       if (r.status === 'error' && r.fatal) {
         markVoiceFailed(r.error || 'error');
         setPhase(parentStart.current ? 'singing' : 'waiting');
-        return; // 保護者のボタンで続ける
+        return; // 保護者のボタンで続ける（録音は続ける）
       }
+      const recP = stopRec();
       if (r.status === 'nospeech') {
+        void recP; // 声がなかった → 録音は保存しない
         setPhase('done');
         await speak('だいじょうぶです。');
         await record({ voice: true, autoJudge: 'unknown', meta: { status: 'nospeech' } });
@@ -194,7 +240,7 @@ function UtaQuestion({
       setNote(j.note);
       if (j.best) setSung(j.best.song.id);
       setPhase('done');
-      await record({
+      const a = await record({
         voice: true,
         autoJudge: j.judge,
         latencyMs: r.latencyMs,
@@ -207,6 +253,7 @@ function UtaQuestion({
           singingMs: r.activeMs !== undefined ? Math.round(r.activeMs) : undefined
         }
       });
+      await keepRec(recP, a);
     });
   };
 
@@ -223,6 +270,8 @@ function UtaQuestion({
     return () => {
       alive.current = false;
       stopRef.current?.();
+      recRef.current?.cancel();
+      recRef.current = null;
       cancelSpeak();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -239,7 +288,10 @@ function UtaQuestion({
   // 子ども：うたい おわった（聞くのをやめて判定へ）
   const finishSinging = () => {
     if (stopRef.current) stopRef.current();
-    else if (!recorded.current) setPhase('done');
+    else if (!recorded.current) {
+      pendingRec.current = stopRec(); // 音声認識なし：録音はここで止めて、保護者の判定のときに保存
+      setPhase('done');
+    }
   };
 
   // 保護者：歌い出した（音声認識が使えないとき）
@@ -252,19 +304,25 @@ function UtaQuestion({
   const parentJudgeNow = async (j: Judge) => {
     stopRef.current?.();
     if (recorded.current) return;
+    const recP = pendingRec.current ?? stopRec();
+    pendingRec.current = null;
     setPhase('done');
-    await record({
+    const a = await record({
       voice: false,
       parentJudge: j,
       latencyMs: parentStart.current?.ms,
       latencySource: parentStart.current ? 'parent' : undefined,
       meta: { sung: pickedRef.current ?? undefined }
     });
+    if (j !== 'unknown') await keepRec(recP, a); // 「うたわない」のときは録音を残さない
   };
 
   const chooseSung = async (id: string) => {
     setSung(id);
-    if (attempt) await db.attempts.update(attempt.id, { meta: { ...(attempt.meta || {}), sung: id } });
+    if (attempt)
+      await db.attempts.update(attempt.id, (x) => {
+        x.meta = { ...(x.meta || {}), sung: id };
+      });
   };
 
   const done = phase === 'done' || !!attempt;
@@ -361,7 +419,14 @@ function UtaQuestion({
           {startMs !== null && <PanelLine label="うたいだし">{secLabel(startMs)}（目標 3秒）</PanelLine>}
           {heard && <PanelLine label="きこえた">{heard.slice(-80)}</PanelLine>}
           {note && <PanelLine label="じどう">{note}</PanelLine>}
+          {recNote && <PanelLine label="ろくおん">{recNote}</PanelLine>}
         </div>
+        {recUrl && (
+          <div className="stack" style={{ gap: 2 }}>
+            <span className="tiny muted">ろくおん（あとで「うたと え」でも聞けます）</span>
+            <audio controls src={recUrl} style={{ width: '100%', height: 36 }} />
+          </div>
+        )}
         {phase === 'waiting' && !attempt && !getVoiceState().available && (
           <button className="btn btn-outline" onClick={parentStarted}>
             うたいだした（ここで秒数を記録）

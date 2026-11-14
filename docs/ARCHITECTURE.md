@@ -156,3 +156,11 @@ src/ui/         共通部品(components.tsx)・アイコン(icons.tsx)・絵文�
 - 1行 = 1文書 `{ t, k, j: JSON 文字列, del, u: 変わった時刻 ms, d: 端末 ID, su: serverTimestamp }`。文書 ID は `表~encodeURIComponent(主キー)`。900KB をこえる行は送らない。
 - 「全部削除」「ゼロから始める」は、先にこのスマホの共有をやめる（共有している記録は消さない）。
 - テスト：`src/core/sync/engine.test.ts`（fake-indexeddb ＋ メモリの中の保存先）。npm は firebase と fake-indexeddb（テスト用）を足した（保護者の依頼）。
+
+## うたの録音（2026-11-15 追加）
+
+- 設定「うたを録音する」（初期値オン）。うたの問題で、音声認識と同時に MediaRecorder で録る（`src/core/speech/recorder.ts`）。webm/Opus 32kbps を先に（40秒で約 210KB）、だめなら mp4/AAC。最長 40秒。
+- 音がまったく入っていない録音（マイクを取られて無音）は保存しない。「うたわない」の判定・声が聞こえなかったときも残さない。
+- `db.recordings`（v4）：`{ id, attemptId, mime, dataUrl, durationMs, createdAt }`。Attempt の `meta.recId`・`meta.recMs` でつなぐ。書き出し・記録の共有にも入る。
+- 聞く所：うたの問題の保護者パネル（終わったあと）と「うたと え」（押したときに読みこむ。保護者は消せる）。
+- Android で音声認識と録音のマイクの取り合いが起きると、自動判定か録音のどちらかが効かないことがある（実機で未確認）。

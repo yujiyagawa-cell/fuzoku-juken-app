@@ -28,6 +28,7 @@ export const DEFAULT_SETTINGS: Settings = {
   kakitashiGuide: true,
   kakitashiShapeSize: 'medium', // 形のまわりに描く場所を広く（2026-11-14 保護者の指摘「余白が狭い」）
   voiceEnabled: true,
+  utaRecord: true, // 2026-11-15 保護者の依頼「録音して（あとで聞けるように）」
   propertyAnswers: {
     togetoge: ['サボテン', 'くりのいが', 'いが', 'ハリネズミ', 'オナモミ', 'ウニ', 'バラ', 'ヤマアラシ', 'まつぼっくり'],
     pikapika: ['10えんだま', 'じゅうえんだま', 'ダイヤモンド', 'ほうせき', 'かがみ', 'きんメダル', 'ほし', 'まど', 'あたらしいくつ'],

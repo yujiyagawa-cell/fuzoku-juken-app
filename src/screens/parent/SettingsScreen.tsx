@@ -470,6 +470,13 @@ export function SettingsScreen() {
         <Field label="声で答える問題に音声認識を使う" hint="オフにすると、保護者が○×で判定します" inline>
           <Switch label="音声認識を使う" on={s.voiceEnabled} onChange={(v) => update({ voiceEnabled: v })} />
         </Field>
+        <Field
+          label="うたを録音する（あとで聞ける）"
+          hint="「うたと え」と、うたの問題の保護者パネルで聞けます。録音は このスマホと、記録の共有先にだけ保存します。スマホによっては、録音しているあいだ うたの自動判定（○）が効かないことがあります。そのときは保護者が○をつけるか、ここをオフにしてください。"
+          inline
+        >
+          <Switch label="うたを録音する" on={s.utaRecord} onChange={(v) => update({ utaRecord: v })} />
+        </Field>
         <Field label="いまの状態">
           <div className="between">
             <span className={`chip ${voice.available ? 'chip-good' : 'chip-warn'}`}>{voice.available ? '使えます' : voiceReasonText(voice.reason)}</span>
@@ -480,7 +487,7 @@ export function SettingsScreen() {
             )}
           </div>
         </Field>
-        <Field label="音声テスト・マイクの許可" hint="音声は Google のサーバーで文字に変換されます。録音は保存しません。">
+        <Field label="音声テスト・マイクの許可" hint="音声は Google のサーバーで文字に変換されます。録音を残すのは「うた」だけです（上の設定で止められます）。">
           <button className="btn btn-outline btn-sm" onClick={() => navigate('/onboarding')}>
             <Icon name="mic" size={16} />
             はじめての設定をもう一度

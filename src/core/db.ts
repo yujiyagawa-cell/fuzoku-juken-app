@@ -13,6 +13,7 @@ import type {
   SessionRec,
   Settings,
   SongLink,
+  SongRecording,
   SongText,
   WaitingLog
 } from './types';
@@ -83,6 +84,7 @@ class AppDB extends Dexie {
   ideas!: Table<Idea, string>;
   kanaSeeds!: Table<KanaSeed, string>;
   songTexts!: Table<SongText, string>;
+  recordings!: Table<SongRecording, string>;
   syncMeta!: Table<SyncMetaRow, string>;
   syncState!: Table<SyncStateRow, string>;
 
@@ -105,6 +107,8 @@ class AppDB extends Dexie {
     this.version(2).stores({ songTexts: 'songId' });
     // v3：記録の共有（スマホどうし）の管理用
     this.version(3).stores({ syncMeta: 'key', syncState: 'k' });
+    // v4：うたの録音
+    this.version(4).stores({ recordings: 'id, attemptId, createdAt' });
     this.use(syncTracker);
   }
 }
@@ -123,7 +127,8 @@ export const TABLE_NAMES = [
   'songLinks',
   'ideas',
   'kanaSeeds',
-  'songTexts'
+  'songTexts',
+  'recordings'
 ] as const;
 
 export function uid(): string {

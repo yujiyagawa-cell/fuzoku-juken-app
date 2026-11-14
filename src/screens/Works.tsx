@@ -12,7 +12,7 @@ import { navigate, useRoute } from '../ui/router';
 import { Viewer } from './parent/NetachoScreen';
 
 // うたと え：子どもが うたった うたと、かいた え を、日ごとに見かえす（子どももみられる）。
-// うたは録音しないので、どの歌か・うたえたか・歌い出しの秒数・聞き取れた ことば（保護者モード）を出す。
+// うた：どの歌か・うたえたか・録音（設定「うたを録音する」）。保護者モードでは、歌い出しの秒数・聞き取れた ことば も出す。
 // #/works?tab=uta|e&day=YYYY-MM-DD（カレンダーの日から開くと、その日だけ）
 
 const WEEK = ['にち', 'げつ', 'か', 'すい', 'もく', 'きん', 'ど'];
@@ -52,12 +52,69 @@ function resultOf(a: Attempt): { label: string; className: string } {
   return { label: '？', className: '' };
 }
 
+/** 録音を聞く（押したときに読みこむ。たくさんあっても重くならないように） */
+function RecPlayer({ attemptId, recId, ms, isParent }: { attemptId: string; recId: string; ms?: number; isParent: boolean }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [missing, setMissing] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const load = async () => {
+    const r = await db.recordings.get(recId);
+    if (r) setSrc(r.dataUrl);
+    else setMissing(true);
+  };
+  const remove = async () => {
+    await db.recordings.delete(recId);
+    await db.attempts.update(attemptId, (x) => {
+      const meta = { ...(x.meta || {}) };
+      delete meta.recId;
+      delete meta.recMs;
+      x.meta = meta;
+    });
+  };
+  return (
+    <div className="stack" style={{ gap: 4, marginTop: 8 }}>
+      {src ? (
+        <audio controls autoPlay src={src} style={{ width: '100%', height: 36 }} />
+      ) : (
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn btn-outline btn-sm" onClick={load}>
+            <Icon name="speaker" size={16} />
+            きく{ms ? `（${Math.max(1, Math.round(ms / 1000))}びょう）` : ''}
+          </button>
+          {missing && <span className="tiny muted">ろくおんは まだ この スマホに とどいていません</span>}
+        </div>
+      )}
+      {isParent &&
+        (confirm ? (
+          <div className="row" style={{ gap: 8 }}>
+            <span className="tiny" style={{ color: 'var(--bad)' }}>
+              この録音を消します。元に戻せません。
+            </span>
+            <button className="btn btn-danger btn-sm" onClick={remove}>
+              消す
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setConfirm(false)}>
+              やめる
+            </button>
+          </div>
+        ) : (
+          <button className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start', minHeight: 28, padding: '0 8px' }} onClick={() => setConfirm(true)}>
+            <Icon name="trash" size={14} />
+            録音を消す
+          </button>
+        ))}
+    </div>
+  );
+}
+
 function SongRow({ a, isParent }: { a: Attempt; isParent: boolean }) {
   const [open, setOpen] = useState(false);
   const song = songOf(a);
   const r = resultOf(a);
   const singingMs = typeof a.meta?.singingMs === 'number' ? (a.meta.singingMs as number) : undefined;
   const hits = Array.isArray(a.meta?.hits) ? (a.meta!.hits as string[]) : [];
+  const recId = typeof a.meta?.recId === 'string' ? (a.meta.recId as string) : undefined;
+  const recMs = typeof a.meta?.recMs === 'number' ? (a.meta.recMs as number) : undefined;
   return (
     <div className="card" style={{ padding: '10px 12px' }}>
       <div className="row" style={{ gap: 10, alignItems: 'center' }}>
@@ -72,6 +129,7 @@ function SongRow({ a, isParent }: { a: Attempt; isParent: boolean }) {
           {r.label}
         </span>
       </div>
+      {recId && <RecPlayer attemptId={a.id} recId={recId} ms={recMs} isParent={isParent} />}
       {isParent && (
         <div className="tiny muted" style={{ marginTop: 6, lineHeight: 1.7, fontWeight: 500 }}>
           歌い出し {secLabel(a.latencyMs)}
@@ -226,7 +284,7 @@ export function Works() {
             ))}
             {isParent && (
               <p className="tiny muted pad" style={{ marginTop: 12, lineHeight: 1.6 }}>
-                うたの声は録音していません。聞き取れた ことばは、音声認識（Google）が文字にしたものです。
+                うたは録音しています（設定「うたを録音する」で止められます）。録音は このスマホと、記録の共有先にだけ保存します。聞き取れた ことばは、音声認識（Google）が文字にしたものです。
               </p>
             )}
           </>

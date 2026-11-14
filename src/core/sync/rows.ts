@@ -14,7 +14,8 @@ export const SYNC_TABLES = [
   'songLinks',
   'ideas',
   'kanaSeeds',
-  'songTexts'
+  'songTexts',
+  'recordings'
 ] as const;
 
 export type SyncTable = (typeof SYNC_TABLES)[number];
@@ -30,8 +31,8 @@ export const SETTINGS_REMOTE_EVENT = 'fz-settings-remote';
 /** 消した行のしるし（syncState.h に入れる） */
 export const DELETED = 'DEL';
 
-/** 1行の大きさの上限（Firestore の1件は 1MiB まで。描いた絵がこれより大きいときは送らない） */
-export const MAX_ROW_CHARS = 900_000;
+/** 1行の大きさの上限（Firestore の1件は 1MiB＝1,048,576 バイトまで。描いた絵・うたの録音がこれより大きいときは送らない） */
+export const MAX_ROW_CHARS = 1_000_000;
 
 /** 行のキー（表の名前 ~ 主キー） */
 export function rowKey(table: string, key: string): string {

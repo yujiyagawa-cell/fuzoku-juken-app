@@ -147,7 +147,7 @@ export function OnboardingScreen() {
             <div className="row" style={{ alignItems: 'flex-start', gap: 10 }}>
               <Icon name="mic" size={22} style={{ color: 'var(--parent)', marginTop: 2 }} />
               <span className="small" style={{ lineHeight: 1.7, fontWeight: 500 }}>
-                声で答える問題では音声認識を使います。<b>音声は Google のサーバーで文字に変換されます。録音は保存しません。</b>
+                声で答える問題では音声認識を使います。<b>音声は Google のサーバーで文字に変換されます。録音を残すのは「うた」だけです</b>（あとで聞けるように。設定で止められます）。
               </span>
             </div>
             <div className="row" style={{ alignItems: 'flex-start', gap: 10 }}>
@@ -188,7 +188,7 @@ export function OnboardingScreen() {
           <div className="pad">
             <h1 className="h1">マイクと音声テスト</h1>
             <p className="small muted" style={{ lineHeight: 1.7 }}>
-              音声は Google のサーバーで文字に変換されます。録音は保存しません。使えないときは、保護者が○×で判定するモードになります。
+              音声は Google のサーバーで文字に変換されます。録音を残すのは「うた」だけです（設定で止められます）。使えないときは、保護者が○×で判定するモードになります。
             </p>
           </div>
           <div className="card stack" style={{ margin: '0 16px', gap: 12 }}>

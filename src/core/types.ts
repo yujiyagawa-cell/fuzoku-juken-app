@@ -40,6 +40,7 @@ export interface Settings {
   kakitashiGuide: boolean;
   kakitashiShapeSize: ShapeSize;
   voiceEnabled: boolean;
+  utaRecord: boolean; // うたを録音して、あとで聞けるようにする
   propertyAnswers: Record<PropertyKind, string[]>;
   onboarded: boolean;
   settingsVersion: number; // 既定値を変えたときの移行用
@@ -140,6 +141,16 @@ export interface Review {
 export interface SongLink {
   songId: string;
   url: string;
+}
+
+/** うたの録音（あとで聞く）。音は data URL（base64）で持つ（記録の共有でそのまま送れるように） */
+export interface SongRecording {
+  id: string;
+  attemptId: string; // どの問題（Attempt）の録音か
+  mime: string;
+  dataUrl: string;
+  durationMs: number;
+  createdAt: string;
 }
 
 /** うたのカードに保護者が貼りつけた歌詞（このスマホの中だけ。公開しない） */
