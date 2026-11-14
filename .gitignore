@@ -4,3 +4,4 @@ public/dict
 .claude/
 *.local
 .DS_Store
+print/

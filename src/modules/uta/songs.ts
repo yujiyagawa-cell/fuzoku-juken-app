@@ -115,7 +115,37 @@ export function songById(id: string): Song | undefined {
   return SONGS.find((s) => s.id === id);
 }
 
+// 検索のことば（同じ題名の別の歌とまちがえないように、よく知られた呼び方を足す）
+const QUERY: Record<string, string> = {
+  'inu-omawari': '犬のおまわりさん',
+  kobutanukitsuneko: 'こぶたぬきつねこ',
+  koinobori: 'こいのぼり 屋根より高い',
+  kotori: 'ことりのうた 童謡',
+  zousan: 'ぞうさん 童謡',
+  medaka: 'めだかの学校',
+  choucho: 'ちょうちょう 童謡',
+  'otsukai-arisan': 'おつかいありさん',
+  tulip: 'チューリップ 童謡',
+  oshougatsu: 'お正月 もういくつねると',
+  hinamatsuri: 'うれしいひなまつり',
+  tanabata: 'たなばたさま 童謡'
+};
+
+export function songQuery(song: Song): string {
+  return QUERY[song.id] ?? `${song.speech} 童謡`;
+}
+
 /** 曲名で YouTube を検索するリンク（保護者が動画を決めたらそのリンクを使う） */
 export function youtubeSearchUrl(song: Song): string {
-  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${song.speech} 童謡`)}`;
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(songQuery(song))}`;
+}
+
+/** 歌詞を探す（歌詞はアプリに入れない。許諾を受けた歌詞サイトなどで見る） */
+export function lyricsSearchUrl(song: Song): string {
+  return `https://www.google.com/search?q=${encodeURIComponent(`${songQuery(song)} 歌詞`)}`;
+}
+
+/** 画面に歌詞が出る動画を探す */
+export function lyricVideoSearchUrl(song: Song): string {
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${songQuery(song)} 歌詞付き`)}`;
 }

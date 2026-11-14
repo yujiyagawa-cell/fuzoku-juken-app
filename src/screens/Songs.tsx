@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { db, useLive } from '../core/db';
 import type { SongLink } from '../core/types';
-import { SONGS, youtubeSearchUrl } from '../modules/uta/songs';
+import { lyricsSearchUrl, lyricVideoSearchUrl, SONGS, youtubeSearchUrl } from '../modules/uta/songs';
 import { BackButton, Header, Modal, ParentStrip, useToast } from '../ui/components';
 import { Emoji } from '../ui/emoji';
 import { Icon } from '../ui/icons';
@@ -32,7 +32,8 @@ export function Songs() {
       <div className="pad" style={{ marginTop: 8 }}>
         <h1 className="h1">うたの曲</h1>
         <p className="small muted" style={{ margin: '6px 0 0', lineHeight: 1.6 }}>
-          ノートで「出題可能性あり」とされた12曲。歌詞と音源はアプリに入れていません。YouTube で聞いて、1番だけ元気に歌えるようにします。
+          ノートで「出題可能性あり」とされた12曲。歌詞と音源は著作権があるのでアプリに入れていません。
+          「歌詞を見る」で歌詞サイト（歌ネットなど）を探すか、「歌詞付き動画」で画面に歌詞が出る動画を見て、1番だけ元気に歌えるようにします。
           よく使う動画が決まったら「動画を決める」でリンクを登録できます。
         </p>
       </div>
@@ -46,9 +47,17 @@ export function Songs() {
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 900 }}>{s.title}</div>
-                <button className="tiny" style={{ border: 0, background: 'none', padding: 0, color: 'var(--parent)' }} onClick={() => { setEdit(s.id); setUrl(own ?? ''); }}>
-                  {own ? '動画を変える' : '動画を決める'}
-                </button>
+                <div className="row" style={{ gap: 12, flexWrap: 'wrap', marginTop: 2 }}>
+                  <a className="tiny" href={lyricsSearchUrl(s)} target="_blank" rel="noopener noreferrer">
+                    歌詞を見る
+                  </a>
+                  <a className="tiny" href={lyricVideoSearchUrl(s)} target="_blank" rel="noopener noreferrer">
+                    歌詞付き動画
+                  </a>
+                  <button className="tiny" style={{ border: 0, background: 'none', padding: 0, color: 'var(--parent)' }} onClick={() => { setEdit(s.id); setUrl(own ?? ''); }}>
+                    {own ? '動画を変える' : '動画を決める'}
+                  </button>
+                </div>
               </div>
               <a className="btn btn-outline btn-sm" href={own ?? youtubeSearchUrl(s)} target="_blank" rel="noopener noreferrer">
                 <Icon name="youtube" size={18} />
