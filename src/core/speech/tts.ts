@@ -1,3 +1,5 @@
+import { hasKanji, toSpeechText } from './speechText';
+
 // 読み上げ（Web Speech API の SpeechSynthesis）
 
 interface TtsConfig {
@@ -82,8 +84,11 @@ function speakOne(text: string, voice: SpeechSynthesisVoice | undefined, rate: n
 }
 
 /** 読み上げる。読み上げが終わったら解決する。times を省くと設定の読み上げ回数。 */
-export async function speak(text: string, opts: { times?: 1 | 2; rate?: number } = {}): Promise<void> {
-  if (!ttsAvailable() || !text) return;
+export async function speak(raw: string, opts: { times?: 1 | 2; rate?: number } = {}): Promise<void> {
+  if (!ttsAvailable() || !raw) return;
+  // 読み上げは かなだけ（漢字は読み間違えるため）。数字は かなの読みに直す。
+  const text = toSpeechText(raw);
+  if (hasKanji(text)) console.warn('[tts] 読み上げる文に漢字があります:', text);
   const gen = ++generation;
   const ss = window.speechSynthesis;
   ss.cancel();

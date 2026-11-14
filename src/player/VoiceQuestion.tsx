@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { buzzer, chime } from '../core/audio';
 import { freeHints } from '../core/judge';
 import { useSettings } from '../core/settings';
+import { speechTextOf } from '../core/speech/speechText';
 import { cancelSpeak, speak } from '../core/speech/tts';
 import type { Attempt, Judge, ParentChecks } from '../core/types';
 import { JudgeButtons, ParentPanel, Switch } from '../ui/components';
@@ -23,7 +24,7 @@ export interface VoiceQSpec {
   moduleId: string;
   questionType: string;
   prompt: string; // 保護者パネルに出す（ひらがな）
-  speech: string; // 読み上げ
+  speech?: string; // 読み上げ（かなだけ。省略・漢字ありなら prompt を読む）
   params?: unknown;
   figure?: ReactNode; // 子どもに見せる絵
   parentOnly?: boolean; // 声では答えない（手をあげる など）
@@ -84,12 +85,12 @@ export function VoiceQuestion({ spec, session, index, total, onNext }: Props) {
     if (spec.parentOnly) {
       (async () => {
         setPhase('speaking');
-        await speak(spec.speech);
+        await speak(speechTextOf(spec.speech, spec.prompt));
         spokeAt.current = performance.now();
         if (alive) setPhase('parent');
       })();
     } else {
-      const ask = askByVoice(spec.speech, {
+      const ask = askByVoice(speechTextOf(spec.speech, spec.prompt), {
         timeoutMs: settings.silenceTimeoutSec * 1000,
         onPhase: (p) => alive && setPhase(p),
         onInterim: (t) => alive && setInterim(t)
@@ -138,7 +139,7 @@ export function VoiceQuestion({ spec, session, index, total, onNext }: Props) {
           scheduleNext();
         } else {
           recorded.current = true;
-          await speak('大丈夫です。');
+          await speak('だいじょうぶです。');
           const a = await session.record({
             ...base,
             answerMode: 'voice',
@@ -161,18 +162,18 @@ export function VoiceQuestion({ spec, session, index, total, onNext }: Props) {
   }, []);
 
   // 保護者判定のとき：時間内にタップがなければ「大丈夫です」
-  // （子どもが答えてから保護者が押すまでの余裕として 5秒たす）
+  // （子どもが答えてから保護者が押すまでの余裕として 3秒たす）
   useEffect(() => {
     if (phase !== 'parent' || recorded.current) return;
     const t = setTimeout(async () => {
       if (recorded.current) return;
       recorded.current = true;
       setPhase('heard');
-      await speak('大丈夫です。');
+      await speak('だいじょうぶです。');
       const a = await session.record({ ...base, answerMode: 'parent', autoJudge: 'unknown', meta: { timedOut: true } });
       setAttempt(a);
       scheduleNext();
-    }, (settings.silenceTimeoutSec + 5) * 1000);
+    }, (settings.silenceTimeoutSec + 3) * 1000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);

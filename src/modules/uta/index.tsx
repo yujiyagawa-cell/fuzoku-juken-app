@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { db } from '../../core/db';
+import { fullReading } from '../../core/reading';
 import { makeRng } from '../../core/rng';
 import { useSettings } from '../../core/settings';
-import { listen } from '../../core/speech/asr';
+import { listenLong } from '../../core/speech/asr';
 import { cancelSpeak, speak } from '../../core/speech/tts';
 import { getVoiceState, markVoiceFailed } from '../../core/speech/voice';
-import type { Attempt, Judge } from '../../core/types';
-import { db } from '../../core/db';
+import type { Attempt, Judge, LatencySource } from '../../core/types';
 import { AttemptJudge, PanelLine, RunnerTop, secLabel } from '../../player/parts';
 import type { ModuleDef, QuestionType, RunnerProps, SessionApi } from '../../player/types';
 import { ParentPanel } from '../../ui/components';
 import { Emoji } from '../../ui/emoji';
 import { Icon } from '../../ui/icons';
 import { moduleColor } from '../common';
+import { judgeSinging } from './judgeSong';
 import { SONGS, songById, type Song } from './songs';
 
 export const UTA_TYPES: QuestionType[] = [
@@ -21,9 +23,10 @@ export const UTA_TYPES: QuestionType[] = [
     genre: 'uta',
     moduleId: 'uta',
     source: '本番',
-    description: '1枚の絵（3〜4曲ぶんのアイコン）を見て、知っている歌を歌う。歌い出しまでの秒数を計る（目標3秒）。歌い出したら仮に○、とまったら保護者が×に直す。',
+    description:
+      '1枚の絵（3〜4曲ぶんのアイコン）を見て、知っている歌を歌う。歌い出しまでの秒数を計る（目標3秒）。歌を聞き取って、その歌の ことば（1曲4〜7語）が出てきたら自動で○。聞き取れないときは？にして保護者が判定。',
     priority: 3,
-    answer: 'parent',
+    answer: 'voice',
     speedTargetSec: 3,
     sample: 'この えの なかで しっている おうたは ありますか。その おうたを うたってください。'
   },
@@ -33,9 +36,9 @@ export const UTA_TYPES: QuestionType[] = [
     genre: 'uta',
     moduleId: 'uta',
     source: 'ノート',
-    description: '曲名＋アイコンのカード4〜5枚から好きな歌を選び、すぐに歌い出す。',
+    description: '曲名＋アイコンのカード4〜5枚から好きな歌を選び、すぐに歌い出す。判定は「絵から歌う」と同じ（ことばが出てきたら○）。',
     priority: 2,
-    answer: 'parent',
+    answer: 'voice',
     speedTargetSec: 3,
     sample: 'どの おうたが すきですか。えらんで うたってください。'
   }
@@ -43,7 +46,7 @@ export const UTA_TYPES: QuestionType[] = [
 
 const JUDGE_LABELS: Partial<Record<Judge, string>> = { correct: 'うたえた', wrong: 'とまった', unknown: 'うたわない' };
 
-type Phase = 'speaking' | 'choose' | 'waiting' | 'singing' | 'done';
+type Phase = 'speaking' | 'choose' | 'waiting' | 'singing' | 'judging' | 'done';
 
 function SongIcons({ song, size }: { song: Song; size: number }) {
   return (
@@ -78,6 +81,9 @@ function SongPicture({ songs }: { songs: Song[] }) {
   );
 }
 
+const SING_MAX_MS = 40000; // 1番を歌い切るのに十分な長さ
+const SING_END_SILENCE_MS = 3500; // 歌い終わったとみなす無音
+
 function UtaQuestion({
   kind,
   index,
@@ -98,10 +104,15 @@ function UtaQuestion({
   const [picked, setPicked] = useState<string | null>(null);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [sung, setSung] = useState<string | null>(null);
+  const [heard, setHeard] = useState('');
+  const [note, setNote] = useState('');
+  const [startMs, setStartMs] = useState<number | null>(null);
   const t0 = useRef(0);
   const recorded = useRef(false);
-  const abortRef = useRef<(() => void) | null>(null);
+  const stopRef = useRef<(() => void) | null>(null);
   const alive = useRef(true);
+  const pickedRef = useRef<string | null>(null);
+  const parentStart = useRef<{ ms: number } | null>(null);
 
   const prompt =
     kind === 'uta-picture'
@@ -109,49 +120,93 @@ function UtaQuestion({
       : 'どの おうたが すきですか。えらんで うたってください。';
   const speech =
     kind === 'uta-picture'
-      ? 'この絵の中で、知っている お歌は ありますか。その お歌を 歌ってください。'
-      : 'どの お歌が 好きですか。選んで 歌ってください。';
+      ? 'この えの なかで、しっている おうたは ありますか。その おうたを うたってください。'
+      : 'どの おうたが すきですか。えらんで うたってください。';
 
-  const record = async (input: { latencyMs?: number; latencySource?: Attempt['latencySource']; autoJudge?: Judge; parentJudge?: Judge; voice: boolean; status?: string }) => {
+  const record = async (input: {
+    voice: boolean;
+    autoJudge?: Judge;
+    parentJudge?: Judge;
+    latencyMs?: number;
+    latencySource?: LatencySource;
+    transcript?: string;
+    meta?: Record<string, unknown>;
+  }) => {
     if (recorded.current) return;
     recorded.current = true;
     const a = await session.record({
       moduleId: 'uta',
       questionType: kind,
       prompt,
-      params: { songs: songs.map((s) => s.id), picked },
+      params: { songs: songs.map((s) => s.id), picked: pickedRef.current },
       answerMode: input.voice ? 'voice' : 'parent',
-      tappedChoice: picked ?? undefined,
+      tappedChoice: pickedRef.current ?? undefined,
+      transcript: input.transcript,
       autoJudge: input.autoJudge,
       parentJudge: input.parentJudge,
       latencyMs: input.latencyMs,
       latencySource: input.latencySource,
-      meta: input.status ? { status: input.status } : undefined
+      meta: input.meta
     });
     if (alive.current) setAttempt(a);
   };
 
-  // 歌い出しを待つ（音声認識で話し始めをつかまえる。使えないときは保護者がボタンで）
-  const waitForSinging = () => {
+  // 歌い出しを待って、止まるまで聞き続ける → 歌のことばで判定
+  const listenSinging = () => {
     t0.current = performance.now();
     setPhase('waiting');
-    if (!getVoiceState().available) return;
-    const l = listen({ timeoutMs: settings.silenceTimeoutSec * 1000, stopOnSpeech: true });
-    abortRef.current = l.abort;
+    if (!getVoiceState().available) return; // 保護者のボタンで続ける
+    const l = listenLong({
+      startTimeoutMs: settings.silenceTimeoutSec * 1000,
+      maxMs: SING_MAX_MS,
+      endSilenceMs: SING_END_SILENCE_MS,
+      onFirstSound: (ms) => {
+        if (!alive.current) return;
+        setStartMs(ms);
+        setPhase('singing');
+      },
+      onText: (t) => alive.current && setHeard(t)
+    });
+    stopRef.current = l.stop;
     l.promise.then(async (r) => {
+      stopRef.current = null;
       if (!alive.current || recorded.current) return;
       if (r.status === 'error' && r.fatal) {
         markVoiceFailed(r.error || 'error');
+        setPhase(parentStart.current ? 'singing' : 'waiting');
         return; // 保護者のボタンで続ける
       }
-      if (r.status === 'result' && r.latencyMs !== undefined) {
-        setPhase('singing');
-        await record({ voice: true, autoJudge: 'correct', latencyMs: r.latencyMs, latencySource: r.latencySource });
-      } else if (r.status === 'nospeech') {
+      if (r.status === 'nospeech') {
         setPhase('done');
-        await speak('大丈夫です。');
-        await record({ voice: true, autoJudge: 'unknown', status: 'nospeech' });
+        await speak('だいじょうぶです。');
+        await record({ voice: true, autoJudge: 'unknown', meta: { status: 'nospeech' } });
+        return;
       }
+      setPhase('judging');
+      let reading = '';
+      try {
+        reading = await fullReading(r.transcript);
+      } catch {
+        reading = r.transcript;
+      }
+      const j = judgeSinging(reading, songs, pickedRef.current);
+      if (!alive.current) return;
+      setNote(j.note);
+      if (j.best) setSung(j.best.song.id);
+      setPhase('done');
+      await record({
+        voice: true,
+        autoJudge: j.judge,
+        latencyMs: r.latencyMs,
+        latencySource: r.latencySource,
+        transcript: r.transcript,
+        meta: {
+          note: j.note,
+          sung: j.best?.song.id,
+          hits: j.best?.hits ?? [],
+          singingMs: r.activeMs !== undefined ? Math.round(r.activeMs) : undefined
+        }
+      });
     });
   };
 
@@ -163,11 +218,11 @@ function UtaQuestion({
       if (kind === 'uta-cards') {
         t0.current = performance.now();
         setPhase('choose');
-      } else waitForSinging();
+      } else listenSinging();
     })();
     return () => {
       alive.current = false;
-      abortRef.current?.();
+      stopRef.current?.();
       cancelSpeak();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,29 +231,43 @@ function UtaQuestion({
   const pick = (id: string) => {
     if (phase !== 'choose') return;
     setPicked(id);
+    pickedRef.current = id;
     setSung(id);
-    waitForSinging();
+    listenSinging();
   };
 
-  // 保護者：歌い出した（音声認識が使えないとき・拾えなかったとき）
-  const parentStarted = async () => {
-    abortRef.current?.();
+  // 子ども：うたい おわった（聞くのをやめて判定へ）
+  const finishSinging = () => {
+    if (stopRef.current) stopRef.current();
+    else if (!recorded.current) setPhase('done');
+  };
+
+  // 保護者：歌い出した（音声認識が使えないとき）
+  const parentStarted = () => {
+    parentStart.current = { ms: performance.now() - t0.current };
+    setStartMs(parentStart.current.ms);
     setPhase('singing');
-    await record({ voice: false, autoJudge: 'correct', latencyMs: performance.now() - t0.current, latencySource: 'parent' });
   };
 
   const parentJudgeNow = async (j: Judge) => {
-    abortRef.current?.();
-    if (!recorded.current) {
-      setPhase('done');
-      await record({ voice: false, parentJudge: j, latencyMs: j === 'correct' ? performance.now() - t0.current : undefined, latencySource: 'parent' });
-    }
+    stopRef.current?.();
+    if (recorded.current) return;
+    setPhase('done');
+    await record({
+      voice: false,
+      parentJudge: j,
+      latencyMs: parentStart.current?.ms,
+      latencySource: parentStart.current ? 'parent' : undefined,
+      meta: { sung: pickedRef.current ?? undefined }
+    });
   };
 
   const chooseSung = async (id: string) => {
     setSung(id);
     if (attempt) await db.attempts.update(attempt.id, { meta: { ...(attempt.meta || {}), sung: id } });
   };
+
+  const done = phase === 'done' || !!attempt;
 
   return (
     <>
@@ -212,11 +281,11 @@ function UtaQuestion({
               <button
                 key={s.id}
                 className={`choice ${picked === s.id ? 'selected' : ''}`}
-                style={{ minHeight: 112 }}
+                style={{ minHeight: 104 }}
                 aria-label={s.title}
                 onClick={() => pick(s.id)}
               >
-                <SongIcons song={s} size={46} />
+                <SongIcons song={s} size={44} />
                 <span className="choice-label" style={{ fontSize: 16 }}>
                   {s.title}
                 </span>
@@ -253,21 +322,32 @@ function UtaQuestion({
               <span className="stage-text" style={{ fontSize: 22 }}>
                 じょうずに うたってね
               </span>
-              <button className="btn btn-primary" onClick={onNext}>
+              <button className="btn btn-primary" onClick={finishSinging}>
                 うたいおわった
               </button>
             </>
           )}
-          {phase === 'done' && (
+          {phase === 'judging' && (
             <span className="stage-text" style={{ fontSize: 21 }}>
-              つぎに いきます
+              ききました
             </span>
+          )}
+          {done && (
+            <>
+              <span className="stage-text" style={{ fontSize: 21 }}>
+                {attempt?.finalJudge === 'correct' && settings.showResultImmediately ? 'じょうずに うたえました' : 'つぎに いきます'}
+              </span>
+              <button className="btn btn-primary" onClick={onNext}>
+                つぎへ
+                <Icon name="right" size={20} />
+              </button>
+            </>
           )}
         </div>
       </div>
       <ParentPanel
         right={
-          recorded.current || attempt ? (
+          done ? (
             <button className="btn btn-parent btn-sm" onClick={onNext}>
               つぎへ
               <Icon name="right" size={16} />
@@ -278,9 +358,11 @@ function UtaQuestion({
         <div className="panel-box stack" style={{ gap: 4 }}>
           <PanelLine label="もんだい">{prompt}</PanelLine>
           <PanelLine label="うた">{songs.map((s) => s.title).join('・')}</PanelLine>
-          {attempt?.latencyMs !== undefined && <PanelLine label="うたいだし">{secLabel(attempt.latencyMs)}（目標 3秒）</PanelLine>}
+          {startMs !== null && <PanelLine label="うたいだし">{secLabel(startMs)}（目標 3秒）</PanelLine>}
+          {heard && <PanelLine label="きこえた">{heard.slice(-80)}</PanelLine>}
+          {note && <PanelLine label="じどう">{note}</PanelLine>}
         </div>
-        {phase === 'waiting' && !attempt && (
+        {phase === 'waiting' && !attempt && !getVoiceState().available && (
           <button className="btn btn-outline" onClick={parentStarted}>
             うたいだした（ここで秒数を記録）
           </button>
@@ -288,15 +370,26 @@ function UtaQuestion({
         {attempt ? (
           <AttemptJudge attempt={attempt} session={session} labels={JUDGE_LABELS} />
         ) : (
-          phase !== 'speaking' && (
+          phase !== 'speaking' &&
+          phase !== 'judging' && (
             <div className="stack" style={{ gap: 4 }}>
-              <span className="tiny muted">うたわなかったときは ここで判定</span>
-              <ParentQuickJudge onJudge={parentJudgeNow} />
+              <span className="tiny muted">保護者がここで判定することもできます</span>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => parentJudgeNow('correct')}>
+                  ○ うたえた
+                </button>
+                <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => parentJudgeNow('wrong')}>
+                  × とまった
+                </button>
+                <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => parentJudgeNow('unknown')}>
+                  ？ うたわない
+                </button>
+              </div>
             </div>
           )
         )}
         {attempt && (
-          <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+          <div className="row panel-more" style={{ flexWrap: 'wrap', gap: 6 }}>
             <span className="tiny muted">うたった曲：</span>
             {songs.map((s) => (
               <button key={s.id} className={`chip ${sung === s.id ? 'chip-parent' : ''}`} style={{ border: 0 }} onClick={() => chooseSung(s.id)}>
@@ -307,19 +400,6 @@ function UtaQuestion({
         )}
       </ParentPanel>
     </>
-  );
-}
-
-function ParentQuickJudge({ onJudge }: { onJudge: (j: Judge) => void }) {
-  return (
-    <div className="row" style={{ gap: 8 }}>
-      <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => onJudge('wrong')}>
-        × とまった
-      </button>
-      <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => onJudge('unknown')}>
-        ？ うたわない
-      </button>
-    </div>
   );
 }
 

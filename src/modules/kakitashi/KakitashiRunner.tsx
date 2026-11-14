@@ -7,10 +7,11 @@ import { cancelSpeak, speak } from '../../core/speech/tts';
 import type { Attempt } from '../../core/types';
 import { AttemptJudge, PanelLine, RunnerTop, secLabel } from '../../player/parts';
 import type { RunnerProps } from '../../player/types';
-import { ParentPanel, Switch, useWakeLock } from '../../ui/components';
+import { Modal, ParentPanel, Switch, useWakeLock } from '../../ui/components';
 import { Icon, ShapeGlyph } from '../../ui/icons';
 import { useMode } from '../../ui/mode';
 import { DrawCanvas, renderPng, shapePainter, tracePainter, type Painter } from './DrawCanvas';
+import { ExampleCard, SHAPE_EXAMPLES, ShapeExamples } from './examples';
 import { pickShapes, SHAPES, type ShapeDef } from './shapes';
 import {
   evaluateTrace,
@@ -83,6 +84,7 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
   const [result, setResult] = useState<Result | null>(null);
   const [starred, setStarred] = useState(false);
   const [timeUpNow, setTimeUpNow] = useState(false);
+  const [showExamples, setShowExamples] = useState(false);
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const strokesRef = useRef<Pt[][]>([]);
@@ -278,7 +280,15 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
                 <img
                   src={result.png}
                   alt="かいた え"
-                  style={{ display: 'block', width: size.w, height: size.h, margin: '0 auto', borderRadius: 18, border: '2px solid var(--line)', background: '#fff' }}
+                  style={{
+                    display: 'block',
+                    width: Math.round(size.w * (shapeItem ? 0.62 : 1)),
+                    height: Math.round(size.h * (shapeItem ? 0.62 : 1)),
+                    margin: '0 auto',
+                    borderRadius: 18,
+                    border: '2px solid var(--line)',
+                    background: '#fff'
+                  }}
                 />
               ) : (
                 <DrawCanvas
@@ -324,15 +334,9 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
             {shapeItem ? (
               <div className="card" style={{ padding: '10px 14px' }}>
                 <div className="small muted" style={{ marginBottom: 6 }}>
-                  こんな えも かけるよ
+                  こんな えも かけるよ（あかい せんが はじめの かたち）
                 </div>
-                <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
-                  {shapeItem.kidExamples.map((x) => (
-                    <span key={x} className="chip chip-sample" style={{ fontSize: 14 }}>
-                      {x}
-                    </span>
-                  ))}
-                </div>
+                <ShapeExamples shape={shapeItem.shape} />
               </div>
             ) : (
               <div className="card" style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 900 }}>
@@ -362,6 +366,9 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
               <>
                 <PanelLine label="かたち">{shapeItem.name}</PanelLine>
                 <PanelLine label="作例">{shapeItem.examples.join('・')}</PanelLine>
+                <button className="btn btn-outline btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setShowExamples(true)}>
+                  見本の絵を見る
+                </button>
               </>
             ) : (
               item.kind === 'trace' && <PanelLine label="なぞり">{TRACE_NAMES[item.trace]}</PanelLine>
@@ -402,6 +409,18 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
           </>
         )}
       </ParentPanel>
+      {shapeItem && (
+        <Modal open={showExamples} onClose={() => setShowExamples(false)} title={`${shapeItem.name}の見本`}>
+          <p className="small muted" style={{ marginTop: 0 }}>
+            赤い線が紙にかいてある形、黒い線がかきたした所です（ノートの作例より）。
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+            {SHAPE_EXAMPLES[shapeItem.shape].map((ex) => (
+              <ExampleCard key={ex.id} ex={ex} size={140} />
+            ))}
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

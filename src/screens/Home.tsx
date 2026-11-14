@@ -11,6 +11,7 @@ import { Header, IconBadge, ParentStrip } from '../ui/components';
 import { Icon, type IconName } from '../ui/icons';
 import { useMode } from '../ui/mode';
 import { navigate } from '../ui/router';
+import { Stamp } from './Calendar';
 
 // ホーム：モジュールのタイル・おまかせ・マイセット。保護者モードでは管理メニューも出す。
 
@@ -136,6 +137,21 @@ export function Home() {
     0
   );
   const exam = examDateLabel(settings.examDate);
+  const stampedToday = useLive(
+    async () => {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const iso = start.toISOString();
+      const [a, w, p] = await Promise.all([
+        db.attempts.where('createdAt').aboveOrEqual(iso).count(),
+        db.waitingLogs.where('createdAt').aboveOrEqual(iso).count(),
+        db.practiceLogs.where('createdAt').aboveOrEqual(iso).count()
+      ]);
+      return a + w + p > 0;
+    },
+    [],
+    false
+  );
 
   const countFor = (m: ModuleDef) => (m.id === 'taiki' ? nextTaikiMinutes(waits) : m.defaultCount);
   const startOne = (m: ModuleDef) => startPlan({ items: [{ moduleId: m.id, count: countFor(m) }], label: m.name });
@@ -150,6 +166,23 @@ export function Home() {
           しけんは {exam.kana}
           {todayMin > 0 && <span>　きょう {todayMin}ぷん れんしゅうしました</span>}
         </div>
+        <button
+          onClick={() => navigate('/calendar')}
+          className="row"
+          style={{ width: '100%', marginTop: 10, padding: '8px 12px', borderRadius: 16, border: '1px solid var(--line)', background: '#fff', textAlign: 'left' }}
+        >
+          <Icon name="calendar" size={24} style={{ color: '#d0453a' }} />
+          <span style={{ flex: 1, fontWeight: 900, whiteSpace: 'nowrap' }}>カレンダー</span>
+          {stampedToday ? (
+            <span className="row small" style={{ gap: 6 }}>
+              きょうの スタンプ
+              <Stamp day={dayKey(new Date())} />
+            </span>
+          ) : (
+            <span className="small muted">きょうは まだ</span>
+          )}
+          <Icon name="right" size={18} style={{ color: 'var(--faint)' }} />
+        </button>
       </div>
 
       <div className="tiles">

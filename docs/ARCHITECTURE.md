@@ -6,6 +6,7 @@ Vite + React 18 + TypeScript + vite-plugin-pwa + Dexie。Android Chrome の PWA�
 
 - 歌詞・録音・外部画像は入れない。絵は SVG と絵文字（`src/ui/emoji.tsx` の `Emoji` / `EMOJI`）だけ。
 - 子ども向けの文はひらがな・分かち書き・敬語（「〜してください」「〜ですか」）。保護者向けは漢字まじりでよい。
+- **読み上げる文は かなだけ**（漢字は読み間違える。例：「方」を「かた」）。`TapQuestion.speech`・`VoiceQSpec.speech` に漢字があると `prompt` を読む（`speechTextOf`）。数字は `speak()` が かなの読みに直す（「1こ」→いっこ、「2にん」→ふたり。`src/core/speech/speechText.ts`）。`speechText.test.ts` が全部の問題を生成して、漢字・数字が残っていないか確かめる。
 - オフラインで動く（音声認識だけはネットが必要）。新しい npm パッケージは足さない。
 - **自分の担当ファイル以外は編集しない。** 共有ファイル（`src/core/*`, `src/player/*`, `src/ui/*`, `src/styles/app.css`, `src/modules/registry.ts`, `src/App.tsx`）を変えたいときは、変えずに最終報告で「何をどう変えたいか」を書く。CSS が足りないときは自分のファイルの中で `style={{}}` を使う。
 - 確認は `npx tsc --noEmit` と `npx vitest run`。ほかの人の作業中のファイルでエラーが出ても直さない（自分のファイルのエラーだけ直す）。dev サーバーやブラウザは起動しない（統合とブラウザ確認はメインがやる）。git は使わない。

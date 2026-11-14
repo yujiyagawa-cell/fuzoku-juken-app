@@ -58,7 +58,7 @@ export function generateShiritori(rng: Rng, length?: 3 | 4): TapQuestion {
     return {
       type: 'shiritori',
       prompt: 'しりとりに なるように じゅんばんに さわってください。',
-      speech: 'しりとりに なるように、順番に さわってください。',
+      speech: 'しりとりに なるように、じゅんばんに さわってください。',
       choices,
       answer: chain.map((e) => e.id),
       mode: 'order',

@@ -138,7 +138,7 @@ function propertySpec(kind: PropertyKind, label: string, kanji: string): (s: Set
   return (s) => ({
     ...base('shitsugi-property', kind),
     prompt: `${label}した ものを ひとつ おしえてください。`,
-    speech: `${kanji}した ものを、ひとつ 教えてください。`,
+    speech: `${label}した ものを、ひとつ おしえてください。`,
     examples: s.propertyAnswers[kind].slice(0, 4),
     judge: (t, alts) => bestOf(t, alts, (x, r) => judgeProperty(x, r, s.propertyAnswers[kind]))
   });
@@ -155,7 +155,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: (s) => ({
       ...base('shitsugi-profile', 'name'),
       prompt: 'おなまえを おしえてください。',
-      speech: 'お名前を 教えてください。',
+      speech: 'おなまえを おしえてください。',
       examples: [s.childNameKanji || s.childName].filter(Boolean),
       judge: (t, alts) => bestOf(t, alts, (x, r) => judgeName(x, r, s))
     })
@@ -167,7 +167,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: (s) => ({
       ...base('shitsugi-profile', 'age'),
       prompt: 'なんさいですか。',
-      speech: '何歳ですか。',
+      speech: 'なんさいですか。',
       examples: s.age ? [`${s.age}さいです`] : [],
       judge: (t, alts) => bestOf(t, alts, (x, r) => judgeAge(x, r, s))
     })
@@ -179,7 +179,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: (s) => ({
       ...base('shitsugi-profile', 'birthday'),
       prompt: 'おたんじょうびは いつですか。',
-      speech: 'お誕生日は いつですか。',
+      speech: 'おたんじょうびは いつですか。',
       examples: s.birthday.month ? [`${s.birthday.month}がつ ${s.birthday.day}にちです`] : [],
       judge: (t, alts) => bestOf(t, alts, (x, r) => judgeBirthday(x, r, s))
     })
@@ -191,7 +191,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: (s) => ({
       ...base('shitsugi-profile', 'nursery'),
       prompt: 'ようちえんですか、ほいくえんですか。',
-      speech: '幼稚園ですか、保育園ですか。',
+      speech: 'ようちえんですか、ほいくえんですか。',
       examples: [`${nurseryKana(s)}です`],
       judge: (t, alts) => bestOf(t, alts, (x, r) => judgeNursery(x, r, s))
     })
@@ -203,7 +203,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: (s) => ({
       ...base('shitsugi-profile', 'handedness'),
       prompt: 'みぎききですか、ひだりききですか。',
-      speech: '右利きですか、左利きですか。',
+      speech: 'みぎききですか、ひだりききですか。',
       examples: s.handedness ? [s.handedness === 'right' ? 'みぎききです' : 'ひだりききです'] : [],
       judge: (t, alts) => bestOf(t, alts, (x, r) => judgeHand(x, r, s))
     })
@@ -215,7 +215,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: () => ({
       ...base('shitsugi-profile', 'righthand'),
       prompt: 'みぎては どちらですか。みぎてを あげてください。',
-      speech: '右手は どちらですか。右手を あげてください。',
+      speech: 'みぎては どちらですか。みぎてを あげてください。',
       parentOnly: true,
       judgeLabels: { correct: 'みぎて', wrong: 'ひだりて', unknown: 'あげない' }
     })
@@ -228,7 +228,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: () => ({
       ...base('shitsugi-koekake', 'hana'),
       prompt: 'この こたちが おはなを そだてています。それを みた あなたは、なんと こえを かけますか。',
-      speech: 'この子たちが、お花を 育てています。それを見た あなたは、何と 声を かけますか。',
+      speech: 'この こたちが、おはなを そだてています。それを みた あなたは、なんと こえを かけますか。',
       figure: FIGURES.hana,
       examples: ['おはなが きれいだね', 'いっしょに みずを あげてもいいですか'],
       hints: true,
@@ -243,7 +243,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: () => ({
       ...base('shitsugi-koekake', 'nekoron'),
       prompt: 'ねころんで いる こが います。なんと こえを かけますか。',
-      speech: '寝ころんでいる子が います。何と 声を かけますか。',
+      speech: 'ねころんでいる こが います。なんと こえを かけますか。',
       figure: FIGURES.nekoron,
       examples: ['だいじょうぶですか', 'ちゃんと すわろうよ'],
       hints: true,
@@ -258,7 +258,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: () => ({
       ...base('shitsugi-koekake', 'batta'),
       prompt: 'バッタを みている おんなのこが います。なんと こえを かけますか。',
-      speech: 'バッタを 見ている 女の子が います。何と 声を かけますか。',
+      speech: 'バッタを みている おんなのこが います。なんと こえを かけますか。',
       figure: FIGURES.batta,
       examples: ['なにを みているの', 'いっしょに みても いいですか'],
       hints: true,
@@ -273,7 +273,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: () => ({
       ...base('shitsugi-koekake', 'naku'),
       prompt: 'ないている こが います。なんと こえを かけますか。',
-      speech: '泣いている子が います。何と 声を かけますか。',
+      speech: 'ないている こが います。なんと こえを かけますか。',
       figure: FIGURES.naku,
       examples: ['だいじょうぶ？', 'どうしたの？ せんせいを よんでくるね'],
       hints: true,
@@ -289,7 +289,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: (s) => ({
       ...base('shitsugi-free', 'ganbatta'),
       prompt: `${nurseryKana(s)}で がんばったことは なんですか。`,
-      speech: `${nurseryKanji(s)}で 頑張ったことは 何ですか。`,
+      speech: `${nurseryKana(s)}で がんばったことは なんですか。`,
       hints: true,
       checks: true,
       judge: (t) => answered(t)
@@ -302,7 +302,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: (s) => ({
       ...base('shitsugi-free', 'tanoshikatta'),
       prompt: `${nurseryKana(s)}で たのしかったことは なんですか。`,
-      speech: `${nurseryKanji(s)}で 楽しかったことは 何ですか。`,
+      speech: `${nurseryKana(s)}で たのしかったことは なんですか。`,
       hints: true,
       checks: true,
       judge: (t) => answered(t)
@@ -315,7 +315,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: (s) => ({
       ...base('shitsugi-free', 'dekita'),
       prompt: `${nurseryKana(s)}で できるように なって よかったことは なんですか。`,
-      speech: `${nurseryKanji(s)}で できるようになって 良かったことは 何ですか。`,
+      speech: `${nurseryKana(s)}で できるように なって よかったことは なんですか。`,
       hints: true,
       checks: true,
       judge: (t) => answered(t)
@@ -328,7 +328,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: () => ({
       ...base('shitsugi-free', 'shougakkou'),
       prompt: 'しょうがっこうで がんばりたいことは なんですか。',
-      speech: '小学校で 頑張りたいことは 何ですか。',
+      speech: 'しょうがっこうで がんばりたいことは なんですか。',
       hints: true,
       checks: true,
       judge: (t) => answered(t)
@@ -341,7 +341,7 @@ export const SHITSUGI_BANK: SQ[] = [
     make: () => ({
       ...base('shitsugi-free', 'doubutsu'),
       prompt: 'すきな どうぶつは なんですか。どうして すきなのですか。',
-      speech: '好きな 動物は 何ですか。どうして 好きなのですか。',
+      speech: 'すきな どうぶつは なんですか。どうして すきなのですか。',
       examples: ['うさぎです。ふわふわで かわいいからです'],
       hints: true,
       checks: true,

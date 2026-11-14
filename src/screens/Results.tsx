@@ -11,6 +11,8 @@ import { Header, JudgeButtons, JudgeMark, ParentStrip } from '../ui/components';
 import { Icon } from '../ui/icons';
 import { useMode } from '../ui/mode';
 import { navigate, useRoute } from '../ui/router';
+import { dayKey } from '../core/dates';
+import { Stamp } from './Calendar';
 
 // セット結果：モジュール別の正答数・平均回答秒数・苦手だった問題、保護者向けのやり直し候補
 
@@ -65,9 +67,16 @@ export function Results() {
       <Header />
       <ParentStrip />
       <div className="stage rise" style={{ flex: 'none', padding: '8px 16px 4px', gap: 8 }}>
-        <div className="orb" style={{ width: 120, height: 120, background: '#fff2c6', color: '#9a6a00' }}>
-          <Icon name="smile" size={70} style={{ strokeWidth: 1.6 }} />
-        </div>
+        <button
+          onClick={() => navigate('/calendar')}
+          aria-label="がんばり カレンダーを みる"
+          style={{ border: 0, background: 'none', padding: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
+        >
+          <Stamp day={dayKey(session?.startedAt ?? new Date())} big />
+          <span className="small" style={{ color: '#d0453a' }}>
+            きょうの スタンプを おしたよ（カレンダー）
+          </span>
+        </button>
         <span className="stage-text" style={{ fontSize: 24 }}>
           よく がんばりました！
         </span>

@@ -77,3 +77,12 @@ describe('fixed answers', () => {
     expect(judgeProperty('雲', 'くも', s.propertyAnswers.togetoge).judge).toBe('unknown');
   });
 });
+
+describe('設定の移行', () => {
+  it('前の版の 20秒 は 10秒 に、変えていた値はそのまま', async () => {
+    const { migrateSettings } = await import('./settings');
+    expect(migrateSettings({ tapTimeLimitSec: 20 }).tapTimeLimitSec).toBe(10);
+    expect(migrateSettings({ tapTimeLimitSec: 30 }).tapTimeLimitSec).toBe(30);
+    expect(migrateSettings({ tapTimeLimitSec: 20, settingsVersion: 2 }).tapTimeLimitSec).toBe(20);
+  });
+});

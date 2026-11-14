@@ -4,6 +4,8 @@ import type { Drawing } from '../../core/types';
 import { Modal, Seg } from '../../ui/components';
 import { Icon, ShapeGlyph } from '../../ui/icons';
 import { navigate } from '../../ui/router';
+import { ShapeExamples } from '../../modules/kakitashi/examples';
+import type { ShapeId } from '../../modules/kakitashi/shapes';
 import { Empty, fmtMDHM, ParentScreen, SectionTitle } from './parentParts';
 
 // ネタ帳：絵の書き足しで描いた絵を形ごとに一覧。◎＝本番で使う絵。
@@ -102,6 +104,7 @@ export function NetachoScreen() {
   const drawings = useLive(() => db.drawings.orderBy('createdAt').reverse().toArray(), [], [] as Drawing[]);
   const [onlyStar, setOnlyStar] = useState<'all' | 'star'>('all');
   const [open, setOpen] = useState<Drawing | null>(null);
+  const [showEx, setShowEx] = useState(true);
 
   const groups = useMemo(() => {
     const list = onlyStar === 'star' ? drawings.filter((d) => d.starred) : drawings;
@@ -132,6 +135,34 @@ export function NetachoScreen() {
           </button>
         </div>
       </div>
+
+      <section aria-label="見本">
+        <SectionTitle
+          right={
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowEx((v) => !v)}>
+              {showEx ? 'たたむ' : 'ひらく'}
+            </button>
+          }
+        >
+          見本の絵（ノートの作例）
+        </SectionTitle>
+        {showEx && (
+          <div className="stack pad" style={{ gap: 12 }}>
+            <div className="tiny muted">赤い線が紙にかいてある形、黒い線がかきたした所。子どもと一緒に見て、自分の「ネタ」を決めておきます。</div>
+            {SHAPES.map((s) => (
+              <div key={s.id}>
+                <div className="row small" style={{ gap: 6, marginBottom: 4 }}>
+                  <span style={{ color: '#d0453a', display: 'inline-flex' }}>
+                    <ShapeGlyph shape={s.id} size={18} />
+                  </span>
+                  {s.name}
+                </div>
+                <ShapeExamples shape={s.id as ShapeId} size={84} />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {drawings.length === 0 && (
         <div style={{ marginTop: 14 }}>

@@ -4,7 +4,7 @@ import { SHAPES } from './shapes';
 // 絵の書き足しの問題タイプ（7つの形）と、点線なぞり（ジャンルは図形）
 
 export const SHAPE_INSTRUCTION = 'この かたちを つかって じゆうに えを かいてください。';
-export const SHAPE_SPEECH = 'この形を使って、自由に絵をかいてください。';
+export const SHAPE_SPEECH = 'この かたちを つかって、じゆうに えを かいてください。';
 export const TRACE_TYPE_ID = 'zukei-trace';
 
 export const KAKITASHI_TYPES: QuestionType[] = [

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { buzzer } from '../core/audio';
+import { speechTextOf } from '../core/speech/speechText';
 import { cancelSpeak, speak } from '../core/speech/tts';
 import { Icon } from '../ui/icons';
 import type { TapQuestion, TapResult } from './types';
@@ -41,7 +42,7 @@ export function TapRound({ q, timeLimitSec, showResult, onAnswered }: Props) {
         if (!alive) return;
       }
       setPhase('speaking');
-      await speak(q.speech ?? q.prompt);
+      await speak(speechTextOf(q.speech, q.prompt));
       if (!alive) return;
       t0.current = performance.now();
       setPhase('answering');
@@ -64,7 +65,7 @@ export function TapRound({ q, timeLimitSec, showResult, onAnswered }: Props) {
         if (doneRef.current) return;
         doneRef.current = true;
         setPhase('done');
-        speak('大丈夫です。', { times: 1 }).then(() => onAnswered({ judge: 'unknown', timedOut: true, order: order.length ? order : undefined }));
+        speak('だいじょうぶです。', { times: 1 }).then(() => onAnswered({ judge: 'unknown', timedOut: true, order: order.length ? order : undefined }));
       }
     }, 100);
     return () => clearInterval(id);

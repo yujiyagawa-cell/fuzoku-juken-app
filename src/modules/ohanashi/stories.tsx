@@ -61,7 +61,7 @@ function q(
   return {
     type: typeIdOf(template),
     prompt: prompt.k,
-    speech: prompt.s,
+    speech: prompt.k,
     choices,
     answer,
     explain,
@@ -146,7 +146,7 @@ function kakekko(rng: Rng): Story {
     type: typeIdOf(t),
     title: 'かけっこ',
     text: text.k,
-    speech: text.s,
+    speech: text.k,
     questions,
     facts: { n, order, season, pairs, statements: stmts }
   };
@@ -223,7 +223,7 @@ function yukidaruma(rng: Rng): Story {
     type: typeIdOf(t),
     title: 'ゆきだるま',
     text: text.k,
-    speech: text.s,
+    speech: text.k,
     questions,
     facts: { n, animals, asc, smallest: asc[0], bigger, season: 'fuyu' }
   };
@@ -408,7 +408,7 @@ function otsukai(rng: Rng): Story {
     type: typeIdOf(t),
     title: 'おつかい',
     text: text.k,
-    speech: text.s,
+    speech: text.k,
     questions,
     facts: { child, asker: asker.id, shop: shop.id, items: [{ id: it1.id, n: c1 }, { id: it2.id, n: c2 }], bag: bag.id }
   };
@@ -532,7 +532,7 @@ function odekake(rng: Rng): Story {
     type: typeIdOf(t),
     title: 'きせつの おでかけ',
     text: text.k,
-    speech: text.s,
+    speech: text.k,
     questions,
     facts: { season, child, who: who.id, carried, found }
   };

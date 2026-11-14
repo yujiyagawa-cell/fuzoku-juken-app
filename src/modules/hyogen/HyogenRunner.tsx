@@ -233,18 +233,18 @@ function HyogenQuestion({ type, index, total, session, onNext }: { type: Questio
       setPhase('intro');
       switch (q.kind) {
         case 'hyogen-rhythm-walk':
-          await speak('先生が 手を たたきます。よく 聞いてください。');
+          await speak('せんせいが てを たたきます。よく きいてください。');
           if (!ok()) return;
           setPhase('demo');
           await sleep(400);
           await demoRhythm();
           if (!ok()) return;
           setPhase('go');
-          await speak('いまの リズムの とおりに、歩いてください。どうぞ。');
+          await speak('いまの リズムの とおりに、あるいてください。どうぞ。');
           break;
         case 'hyogen-pose':
           if (q.variant === 'memory') {
-            await speak('先生が うごきます。よく 見ていてください。');
+            await speak('せんせいが うごきます。よく みていてください。');
             if (!ok()) return;
             setPhase('demo');
             await demoPoses(2600);
@@ -252,11 +252,11 @@ function HyogenQuestion({ type, index, total, session, onNext }: { type: Questio
             setPhase('go');
             await speak('おなじように、うごいてください。どうぞ。');
           } else {
-            await speak('先生と おなじように、うごいてください。');
+            await speak('せんせいと おなじように、うごいてください。');
           }
           break;
         case 'hyogen-sing-copy':
-          await speak('先生が うたいます。よく 聞いてください。');
+          await speak('せんせいが うたいます。よく きいてください。');
           if (!ok()) return;
           setPhase('demo');
           await sleep(300);
@@ -266,7 +266,7 @@ function HyogenQuestion({ type, index, total, session, onNext }: { type: Questio
           await speak('おなじように、ラで うたってください。どうぞ。');
           break;
         case 'hyogen-instrument':
-          await speak('好きな 楽器を、ひとつ 選んでください。');
+          await speak('すきな がっきを、ひとつ えらんでください。');
           if (!ok()) return;
           chooseStart.current = performance.now();
           setPhase('choose');
@@ -275,13 +275,13 @@ function HyogenQuestion({ type, index, total, session, onNext }: { type: Questio
           });
           if (!ok()) return;
           setPhase('go');
-          await speak('音楽に あわせて、ならしてください。');
+          await speak('おんがくに あわせて、ならしてください。');
           break;
         case 'hyogen-metronome':
-          await speak('メトロノームの 速さに あわせて、歩いてください。');
+          await speak('メトロノームの はやさに あわせて、あるいてください。');
           break;
         case 'hyogen-dance':
-          await speak('手と 足を うごかして、自由に おどってください。');
+          await speak('てと あしを うごかして、じゆうに おどってください。');
           break;
       }
       if (!ok()) return;

@@ -38,6 +38,7 @@ export interface Settings {
   voiceEnabled: boolean;
   propertyAnswers: Record<PropertyKind, string[]>;
   onboarded: boolean;
+  settingsVersion: number; // 既定値を変えたときの移行用
 }
 
 export interface SessionRec {

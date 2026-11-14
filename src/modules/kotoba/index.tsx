@@ -98,7 +98,7 @@ export function kotobaSpec(p: KotobaPair, settings: Settings, moduleId = 'kotoba
     moduleId,
     questionType: `kotoba-${p.length}`,
     prompt: `「${p.kana}」で はじまる ${p.length}もじの ことばを おしえてください。`,
-    speech: `「${p.kana}」で はじまる、${p.length}文字の 言葉を 教えてください。`,
+    speech: `「${p.kana}」で はじまる、${p.length}もじの ことばを おしえてください。`,
     params: { kana: p.kana, length: p.length },
     examples: examplesFor(p.kana, p.length, settings.moraRules),
     judge: async (t, alts) => {

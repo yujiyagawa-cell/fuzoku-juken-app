@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ttsRate: 1,
   voiceURI: '',
   readTimes: 1,
-  tapTimeLimitSec: 20,
+  tapTimeLimitSec: 10, // 本番は即答が必要（2026-11-14 10秒に）
   silenceTimeoutSec: 10,
   showResultImmediately: false,
   autoNextSec: 2,
@@ -31,11 +31,23 @@ export const DEFAULT_SETTINGS: Settings = {
     pikapika: ['10えんだま', 'じゅうえんだま', 'ダイヤモンド', 'ほうせき', 'かがみ', 'きんメダル', 'ほし', 'まど', 'あたらしいくつ'],
     fuwafuwa: ['わたがし', 'くも', 'ひつじ', 'うさぎ', 'ふとん', 'わた', 'クッション', 'わたげ', 'たんぽぽのわたげ', 'ぬいぐるみ']
   },
-  onboarded: false
+  onboarded: false,
+  settingsVersion: 2
 };
+
+/** 前の版で保存された設定を、新しい既定値に合わせる */
+export function migrateSettings(saved: Partial<Settings>): Partial<Settings> {
+  const v = saved.settingsVersion ?? 1;
+  const out = { ...saved };
+  // v2：タップの制限時間の既定を 20秒 → 10秒（即答が必要なため）
+  if (v < 2 && (out.tapTimeLimitSec === undefined || out.tapTimeLimitSec === 20)) out.tapTimeLimitSec = 10;
+  out.settingsVersion = DEFAULT_SETTINGS.settingsVersion;
+  return out;
+}
 
 function merge(saved: Partial<Settings> | undefined): Settings {
   if (!saved) return { ...DEFAULT_SETTINGS };
+  saved = migrateSettings(saved);
   return {
     ...DEFAULT_SETTINGS,
     ...saved,

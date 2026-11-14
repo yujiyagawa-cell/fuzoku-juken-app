@@ -309,7 +309,7 @@ export function SettingsScreen() {
             ]}
           />
         </Field>
-        <Field label="タップで答える問題の制限時間" hint="時間がきたら「大丈夫です」と言って次へ進みます">
+        <Field label="タップで答える問題の制限時間" hint="本番は即答が必要なので10秒。時間がきたら「大丈夫です」と言って次へ進みます">
           <ChipButtons
             label="タップの制限時間"
             value={s.tapTimeLimitSec}

@@ -13,6 +13,7 @@ import { Player } from './screens/Player';
 import { Results } from './screens/Results';
 import { SetSetup } from './screens/SetSetup';
 import { Songs } from './screens/Songs';
+import { Calendar } from './screens/Calendar';
 import { BackButton, Header } from './ui/components';
 import { Icon } from './ui/icons';
 import { useMode } from './ui/mode';
@@ -23,6 +24,7 @@ import { navigate, useRoute } from './ui/router';
 //  #/setup?m=a,b&types=x&set=id   セット設定
 //  #/play            練習（plan.ts に保存した計画を実行）
 //  #/results/<id>    セット結果
+//  #/calendar        がんばりカレンダー（子どもも見られる）
 //  #/songs           うたの曲リスト（YouTube リンク）
 //  #/progress        進捗（レベル）一覧
 //  #/records         記録（推移・苦手）
@@ -90,6 +92,9 @@ export function App() {
         break;
       case 'results':
         screen = <Results />;
+        break;
+      case 'calendar':
+        screen = <Calendar />;
         break;
       case 'songs':
         screen = <Songs />;

@@ -175,6 +175,148 @@ export function listen(opts: ListenOptions): { promise: Promise<ListenResult>; a
   };
 }
 
+// ---- 長く聞く（歌など）----
+// 話し始め（歌い出し）までの秒数を取りつつ、止まるまで聞き続けて、聞こえた言葉を全部つなげる。
+// 端末が途中で認識を終えても、時間内なら自動で再開する。
+
+export interface LongListenResult {
+  status: 'result' | 'nospeech' | 'error';
+  transcript: string; // 聞こえた言葉をつなげたもの
+  latencyMs?: number;
+  latencySource?: LatencySource;
+  activeMs?: number; // 歌い出しから最後に声が聞こえたまで
+  error?: string;
+  fatal?: boolean;
+}
+
+export interface LongListenOptions {
+  startTimeoutMs: number; // 歌い出しを待つ時間
+  maxMs: number; // 全体の最大
+  endSilenceMs: number; // 歌い出したあと、これだけ何も聞こえなければ終わり
+  onFirstSound?: (latencyMs: number, source: LatencySource) => void;
+  onText?: (text: string) => void;
+}
+
+export function listenLong(opts: LongListenOptions): { promise: Promise<LongListenResult>; stop: () => void } {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec: any = null;
+  let settled = false;
+  let resolveFn: (r: LongListenResult) => void = () => {};
+  const t0 = performance.now();
+  let firstAt = 0;
+  let firstSource: LatencySource | undefined;
+  let lastHeardAt = 0;
+  const finals: string[] = [];
+  let interim = '';
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const text = () => [...finals, interim].filter(Boolean).join(' ');
+
+  const finish = (status?: LongListenResult['status'], extra: Partial<LongListenResult> = {}) => {
+    if (settled) return;
+    settled = true;
+    timers.forEach(clearTimeout);
+    if (silenceTimer) clearTimeout(silenceTimer);
+    if (rec) {
+      rec.onresult = rec.onerror = rec.onend = rec.onspeechstart = rec.onsoundstart = null;
+      try {
+        rec.abort();
+      } catch {
+        /* noop */
+      }
+    }
+    const heard = !!firstAt;
+    resolveFn({
+      status: status ?? (heard ? 'result' : 'nospeech'),
+      transcript: text(),
+      latencyMs: heard ? firstAt - t0 : undefined,
+      latencySource: firstSource,
+      activeMs: heard ? Math.max(0, (lastHeardAt || firstAt) - firstAt) : undefined,
+      ...extra
+    });
+  };
+
+  const heard = (source: LatencySource) => {
+    const now = performance.now();
+    if (!firstAt) {
+      firstAt = now;
+      firstSource = source;
+      opts.onFirstSound?.(now - t0, source);
+    }
+    lastHeardAt = now;
+    if (silenceTimer) clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => finish(), opts.endSilenceMs);
+  };
+
+  const start = () => {
+    rec = new SR();
+    rec.lang = 'ja-JP';
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    rec.onsoundstart = () => heard('soundstart');
+    rec.onspeechstart = () => heard('speechstart');
+    rec.onresult = (ev: any) => {
+      let cur = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const r = ev.results[i];
+        const t = String(r[0]?.transcript || '').trim();
+        if (r.isFinal) {
+          if (t) finals.push(t);
+        } else cur += t;
+      }
+      interim = cur;
+      heard('interim');
+      opts.onText?.(text());
+    };
+    rec.onerror = (ev: any) => {
+      const err = String(ev?.error || 'unknown');
+      if (err === 'no-speech' || err === 'aborted') return;
+      if (FATAL.has(err)) finish('error', { error: err, fatal: true });
+    };
+    rec.onend = () => {
+      if (settled) return;
+      // いま聞こえていた途中の言葉は確定として残す
+      if (interim) {
+        finals.push(interim);
+        interim = '';
+      }
+      const elapsed = performance.now() - t0;
+      if (elapsed < opts.maxMs - 300) {
+        try {
+          start();
+        } catch {
+          finish();
+        }
+      } else finish();
+    };
+    try {
+      rec.start();
+    } catch (e: any) {
+      finish('error', { error: String(e?.message || e), fatal: true });
+    }
+  };
+
+  const promise = new Promise<LongListenResult>((resolve) => {
+    resolveFn = resolve;
+    if (!SR) {
+      settled = true;
+      resolve({ status: 'error', transcript: '', error: 'unsupported', fatal: true });
+      return;
+    }
+    timers.push(
+      setTimeout(() => {
+        if (!firstAt) finish('nospeech');
+      }, opts.startTimeoutMs)
+    );
+    timers.push(setTimeout(() => finish(), opts.maxMs));
+    start();
+  });
+
+  return { promise, stop: () => finish() };
+}
+
 /** マイクの許可を取る（初回設定で使う） */
 export async function requestMicPermission(): Promise<boolean> {
   try {
