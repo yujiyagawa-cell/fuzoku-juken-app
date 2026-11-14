@@ -1,13 +1,16 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { appBaseUrl, applyEnv, decodeEnv, hasLocalData, wipeAll, type EnvSnapshot } from '../core/envLink';
 import { examDateLabel } from '../core/dates';
 import { enableSync, fromEnvSync, loadSyncConfig } from '../core/sync';
 import { describeSyncError } from '../core/sync/remote';
 import { Header } from '../ui/components';
-import { Icon } from '../ui/icons';
 import { navigate, useRoute } from '../ui/router';
 
 // 「設定つきURL」「ゼロから始めるURL」を開いたときの画面（#/start?env=… ／ #/start?fresh=1）
+// ・設定つきURL：開いたら確認なしで、すぐに設定を入れて（共有先が入っていれば記録の共有にもつないで）ホームへ行く。
+//   すでに同じ共有に入っているスマホでは、リンクの設定は入れない（リンクの設定は古いかもしれない。共有の設定が正しい）。
+//   LINE の中のブラウザで開いたときだけ止めて、Chrome で開き直すよう案内する（記録が Chrome とは別になるため）。
+// ・ゼロから始めるURL：記録を消すので、確認してから消す。
 
 function goHomeReload(path: string) {
   // 設定を読み直すために、ページごと開き直す（URL に入っていた設定は履歴に残さない）
@@ -15,13 +18,18 @@ function goHomeReload(path: string) {
   window.location.reload();
 }
 
-/** 設定つきURLに入っていた共有先につなぐ（同じ共有先にもうつないでいれば、そのまま） */
-async function joinSync(snap: EnvSnapshot): Promise<void> {
+/** LINE の中のブラウザで開いているか */
+function inLineBrowser(): boolean {
+  return typeof navigator !== 'undefined' && /\bLine\//i.test(navigator.userAgent);
+}
+
+/** 設定つきURLで始める：設定を入れて、共有先が入っていれば つなぐ */
+async function startWithLink(snap: EnvSnapshot): Promise<void> {
   const fb = snap.y ? fromEnvSync(snap.y) : null;
-  if (!fb) return;
   const cur = await loadSyncConfig();
-  if (cur && cur.fb.projectId === fb.projectId && cur.fb.apiKey === fb.apiKey) return;
-  await enableSync(fb);
+  if (fb && cur && cur.fb.projectId === fb.projectId && cur.fb.apiKey === fb.apiKey) return; // もう同じ共有に入っている
+  await applyEnv(snap);
+  if (fb) await enableSync(fb);
 }
 
 function Shell({ title, children }: { title: string; children: ReactNode }) {
@@ -47,11 +55,34 @@ export function Start() {
   const [hasData, setHasData] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [joinError, setJoinError] = useState('');
+  const [allowInLine, setAllowInLine] = useState(false);
+  const started = useRef(false);
+  const inLine = inLineBrowser();
 
   useEffect(() => {
     hasLocalData().then(setHasData);
     if (env) decodeEnv(env).then(setSnap, () => setError(true));
   }, [env]);
+
+  const run = async (s: EnvSnapshot) => {
+    setBusy(true);
+    setJoinError('');
+    try {
+      await startWithLink(s);
+      goHomeReload('/');
+    } catch (e) {
+      setJoinError(describeSyncError(e));
+      setBusy(false);
+    }
+  };
+
+  // 設定つきURL：開いたら、すぐに始める
+  useEffect(() => {
+    if (!snap || started.current || (inLine && !allowInLine)) return;
+    started.current = true;
+    void run(snap);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snap, allowInLine]);
 
   // ゼロから：このスマホに何もなければ、そのまま はじめての設定へ
   useEffect(() => {
@@ -71,7 +102,7 @@ export function Start() {
         </Shell>
       );
     }
-    if (!snap || hasData === null) return <Shell title="よみこみちゅう…">{null}</Shell>;
+    if (!snap) return <Shell title="よみこみちゅう…">{null}</Shell>;
     if (joinError) {
       return (
         <Shell title="記録の共有に つなげませんでした">
@@ -83,21 +114,8 @@ export function Start() {
           <p className="tiny muted" style={{ margin: 0, lineHeight: 1.6 }}>
             設定は入りました。共有は「もう一度」で、つなぎ直せます。あとから、このURLをもう一度開いてもつながります。
           </p>
-          <button
-            className="btn btn-primary btn-block"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await joinSync(snap);
-                goHomeReload('/');
-              } catch (e) {
-                setJoinError(describeSyncError(e));
-                setBusy(false);
-              }
-            }}
-          >
-            もう一度
+          <button className="btn btn-primary btn-block" disabled={busy} onClick={() => run(snap)}>
+            {busy ? 'つないでいます…' : 'もう一度'}
           </button>
           <button className="btn btn-ghost btn-block" onClick={() => goHomeReload('/')}>
             共有なしで はじめる
@@ -105,67 +123,38 @@ export function Start() {
         </Shell>
       );
     }
+    if (inLine && !allowInLine) {
+      return (
+        <Shell title="Chrome で ひらいてください">
+          <div className="card" style={{ background: 'var(--warn-bg)', borderColor: '#f3d2b8' }}>
+            <div className="small" style={{ color: 'var(--warn)', lineHeight: 1.6, fontWeight: 700 }}>
+              LINE の中で開いています。このまま始めると、記録が Chrome とは別になります。
+            </div>
+          </div>
+          <p className="small" style={{ margin: 0, lineHeight: 1.7 }}>
+            LINE のメニュー（右上の︙など）から「ブラウザで開く」を選んで、開き直してください。iPhone は Safari で開きます。
+          </p>
+          <button className="btn btn-ghost btn-block" onClick={() => setAllowInLine(true)}>
+            このまま LINE の中で はじめる
+          </button>
+        </Shell>
+      );
+    }
     const s = snap.s;
     const name = [s.childName, s.childNameKanji ? `（${s.childNameKanji}）` : ''].join('');
     return (
-      <Shell title="設定つきで はじめる">
+      <Shell title="はじめています…">
         <div className="card stack" style={{ gap: 6 }}>
-          <div className="small muted">このリンクに入っている設定</div>
           {name && (
             <div>
               子ども：<b>{name}</b>
-              {s.age ? `　${s.age}さい` : ''}
-              {s.birthday?.month ? `　${s.birthday.month}月${s.birthday.day}日生まれ` : ''}
             </div>
           )}
           {s.examDate && <div>試験日：{examDateLabel(s.examDate).kanji}</div>}
-          <div className="small muted">
-            回答の制限時間 {s.tapTimeLimitSec ?? '—'}秒／読み上げ {s.readTimes ?? 1}回
-            {snap.r?.length ? `／問題カタログの評価 ${snap.r.length}件` : ''}
-            {snap.m?.length ? `／マイセット ${snap.m.length}件` : ''}
-            {snap.l?.length ? `／うたの動画 ${snap.l.length}件` : ''}
+          <div className="small muted" style={{ lineHeight: 1.6 }}>
+            {snap.y ? '設定を入れて、記録の共有に つないでいます。少しお待ちください。' : '設定を入れています。'}
           </div>
-          {snap.y && (
-            <div style={{ fontWeight: 700 }}>
-              <Icon name="refresh" size={16} /> 記録の共有：あり
-            </div>
-          )}
         </div>
-        {hasData && (
-          <div className="card" style={{ background: 'var(--warn-bg)', borderColor: '#f3d2b8' }}>
-            <div className="small" style={{ color: 'var(--warn)' }}>
-              このスマホの設定は、リンクの設定に置きかわります。このスマホの記録（進捗）や描いた絵は消えません。
-            </div>
-          </div>
-        )}
-        <p className="tiny muted" style={{ margin: 0, lineHeight: 1.6 }}>
-          {snap.y
-            ? '記録の共有に入ります。家族のスマホの記録・描いた絵・歌詞が このスマホにも入り、このスマホの記録も共有に送られます。ネットにつないだ状態で押してください。'
-            : '記録（進捗）は入っていません。記録も移すときは、もとのスマホの「設定 → データの書き出し」で作ったファイルを、このスマホで読み込んでください。'}
-          マイクの許可は、はじめて声で答えるときに聞かれます。
-        </p>
-        <button
-          className="btn btn-primary btn-big btn-block"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true);
-            await applyEnv(snap);
-            try {
-              await joinSync(snap);
-            } catch (e) {
-              setJoinError(describeSyncError(e));
-              setBusy(false);
-              return;
-            }
-            goHomeReload('/');
-          }}
-        >
-          <Icon name="check" size={22} />
-          {busy && snap.y ? 'つないでいます…' : 'この設定で はじめる'}
-        </button>
-        <button className="btn btn-ghost btn-block" onClick={() => navigate('/', { replace: true })}>
-          やめる
-        </button>
       </Shell>
     );
   }
