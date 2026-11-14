@@ -13,6 +13,9 @@ export interface MoraRules {
 
 export type PropertyKind = 'togetoge' | 'pikapika' | 'fuwafuwa';
 
+/** 絵の書き足しの形の大きさ（小さいほど、まわりに描く場所が広い） */
+export type ShapeSize = 'large' | 'medium' | 'small';
+
 export interface Settings {
   childName: string; // ひらがな
   childNameKanji: string;
@@ -35,6 +38,7 @@ export interface Settings {
   mixKotobaInShitsugi: boolean;
   kakitashiTimeLimitSec: number; // 0 = 制限なし
   kakitashiGuide: boolean;
+  kakitashiShapeSize: ShapeSize;
   voiceEnabled: boolean;
   propertyAnswers: Record<PropertyKind, string[]>;
   onboarded: boolean;

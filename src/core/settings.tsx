@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   mixKotobaInShitsugi: true,
   kakitashiTimeLimitSec: 0,
   kakitashiGuide: true,
+  kakitashiShapeSize: 'medium', // 形のまわりに描く場所を広く（2026-11-14 保護者の指摘「余白が狭い」）
   voiceEnabled: true,
   propertyAnswers: {
     togetoge: ['サボテン', 'くりのいが', 'いが', 'ハリネズミ', 'オナモミ', 'ウニ', 'バラ', 'ヤマアラシ', 'まつぼっくり'],

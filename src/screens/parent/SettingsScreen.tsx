@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, useSettings } from '../../core/settings';
 import { getVoices, japaneseVoices, speak } from '../../core/speech/tts';
 import { resetVoiceFailure, useVoiceState, voiceReasonText } from '../../core/speech/voice';
 import { disableSync, useSyncStatus } from '../../core/sync';
+import { SHAPE_SIZE_OPTIONS } from '../../modules/kakitashi/KakitashiRunner';
 import type { PropertyKind, Settings } from '../../core/types';
 import { Modal, Seg, Switch, useToast } from '../../ui/components';
 import { Icon } from '../../ui/icons';
@@ -458,6 +459,9 @@ export function SettingsScreen() {
         </Field>
         <Field label="「かたちの そとにも かこう」を出す" inline>
           <Switch label="ガイドを出す" on={s.kakitashiGuide} onChange={(v) => update({ kakitashiGuide: v })} />
+        </Field>
+        <Field label="形の大きさ" hint="小さいほど、形のまわりに描く場所が広くなります（本番の紙も、形のまわりは広い）">
+          <Seg label="形の大きさ" value={s.kakitashiShapeSize} onChange={(v) => update({ kakitashiShapeSize: v })} options={SHAPE_SIZE_OPTIONS} />
         </Field>
       </Group>
 

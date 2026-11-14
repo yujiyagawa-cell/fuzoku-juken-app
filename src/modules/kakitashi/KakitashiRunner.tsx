@@ -4,10 +4,10 @@ import { db, nowIso, uid } from '../../core/db';
 import { makeRng } from '../../core/rng';
 import { useSettings } from '../../core/settings';
 import { cancelSpeak, speak } from '../../core/speech/tts';
-import type { Attempt } from '../../core/types';
+import type { Attempt, ShapeSize } from '../../core/types';
 import { AttemptJudge, PanelLine, RunnerTop, secLabel } from '../../player/parts';
 import type { RunnerProps } from '../../player/types';
-import { Modal, ParentPanel, Switch, useWakeLock } from '../../ui/components';
+import { Modal, ParentPanel, Seg, Switch, useWakeLock } from '../../ui/components';
 import { Icon, ShapeGlyph } from '../../ui/icons';
 import { useMode } from '../../ui/mode';
 import { DrawCanvas, renderPng, shapePainter, tracePainter, type Painter } from './DrawCanvas';
@@ -32,6 +32,12 @@ import { SHAPE_INSTRUCTION, SHAPE_SPEECH, TRACE_TYPE_ID } from './types';
 type Item = { kind: 'shape'; def: ShapeDef } | { kind: 'trace'; trace: TraceKind; seed: number };
 
 type Phase = 'speaking' | 'drawing' | 'saving' | 'review';
+
+export const SHAPE_SIZE_OPTIONS: { v: ShapeSize; label: string }[] = [
+  { v: 'large', label: '大きめ' },
+  { v: 'medium', label: 'ふつう' },
+  { v: 'small', label: '小さめ' }
+];
 
 interface Result {
   png: string;
@@ -112,7 +118,7 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
     // 画面の空いている高さを使う（形のまわりに描く場所を広くとる）。
     // 下の「さいしょから・できた」と保護者パネルには重ならないように（スクロールせずに描けるように）
     const w = Math.max(260, Math.floor(el.clientWidth));
-    const canvasTop = el.getBoundingClientRect().top + 40; // 上の案内（チップ）の分
+    const canvasTop = el.getBoundingClientRect().top; // 案内（チップ）はキャンバスの上に重ねる
     const below = 84 + 76; // ボタンの列 ＋ 下の保護者パネル
     const h = Math.round(Math.max(260, Math.min(w * 1.35, window.innerHeight - canvasTop - below)));
     setSize({ w, h });
@@ -127,9 +133,9 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
 
   const painter = useMemo<Painter | null>(() => {
     if (!item || !size) return null;
-    if (item.kind === 'shape') return shapePainter(item.def.shape);
+    if (item.kind === 'shape') return shapePainter(item.def.shape, settings.kakitashiShapeSize);
     return tracePath ? tracePainter(tracePath, item.trace) : null;
-  }, [item, size, tracePath]);
+  }, [item, size, tracePath, settings.kakitashiShapeSize]);
 
   // 1枚ごとのはじまり：読み上げ（1回）→ 描ける
   useEffect(() => {
@@ -258,28 +264,16 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
           }
         />
         <div ref={wrapRef} style={{ width: '100%' }}>
-          {item && size && painter && (
-            <>
-              <div style={{ minHeight: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-                {phase === 'speaking' && (
-                  <span className="row muted small">
-                    <Icon name="speaker" size={18} />
-                    よく きいてください
+          {item &&
+            size &&
+            painter &&
+            (phase === 'review' && result ? (
+              <>
+                <div style={{ minHeight: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                  <span className="chip chip-good rise" style={{ fontSize: 15 }}>
+                    できました
                   </span>
-                )}
-                {phase === 'drawing' && shapeItem && settings.kakitashiGuide && (
-                  <span className="chip chip-sample rise" style={{ fontSize: 14 }}>
-                    かたちの そとにも かこう
-                  </span>
-                )}
-                {phase === 'drawing' && !shapeItem && (
-                  <span className="chip chip-good rise" style={{ fontSize: 14 }}>
-                    みどりの まるから はじめます
-                  </span>
-                )}
-                {phase === 'review' && <span className="chip chip-good rise" style={{ fontSize: 15 }}>できました</span>}
-              </div>
-              {phase === 'review' && result ? (
+                </div>
                 <img
                   src={result.png}
                   alt="かいた え"
@@ -293,7 +287,9 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
                     background: '#fff'
                   }}
                 />
-              ) : (
+              </>
+            ) : (
+              <div style={{ position: 'relative' }}>
                 <DrawCanvas
                   key={idx}
                   width={size.w}
@@ -310,9 +306,30 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
                   }}
                   onStrokesChange={setNStrokes}
                 />
-              )}
-            </>
-          )}
+                {/* 案内はキャンバスの上に重ねる（描く場所を広くとるため。描きはじめたら消える） */}
+                <div
+                  aria-live="polite"
+                  style={{ position: 'absolute', top: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 2 }}
+                >
+                  {phase === 'speaking' && (
+                    <span className="chip" style={{ fontSize: 14, background: 'rgba(255,255,255,0.94)' }}>
+                      <Icon name="speaker" size={16} />
+                      よく きいてください
+                    </span>
+                  )}
+                  {phase === 'drawing' && nStrokes === 0 && shapeItem && settings.kakitashiGuide && (
+                    <span className="chip chip-sample rise" style={{ fontSize: 14 }}>
+                      かたちの そとにも かこう
+                    </span>
+                  )}
+                  {phase === 'drawing' && nStrokes === 0 && !shapeItem && (
+                    <span className="chip chip-good rise" style={{ fontSize: 14 }}>
+                      みどりの まるから はじめます
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
         </div>
 
         {phase === 'drawing' && (
@@ -390,10 +407,23 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
           </div>
         )}
         {phase === 'drawing' && shapeItem && isParent && (
-          <div className="between">
-            <span className="small">ガイド「かたちの そとにも かこう」</span>
-            <Switch on={settings.kakitashiGuide} label="ガイドを表示" onChange={(v) => update({ kakitashiGuide: v })} />
-          </div>
+          <>
+            <div className="between">
+              <span className="small">ガイド「かたちの そとにも かこう」</span>
+              <Switch on={settings.kakitashiGuide} label="ガイドを表示" onChange={(v) => update({ kakitashiGuide: v })} />
+            </div>
+            <div className="between" style={{ gap: 8 }}>
+              <span className="small" style={{ flexShrink: 0 }}>
+                形の大きさ
+              </span>
+              <Seg
+                label="形の大きさ"
+                value={settings.kakitashiShapeSize}
+                onChange={(v) => update({ kakitashiShapeSize: v })}
+                options={SHAPE_SIZE_OPTIONS}
+              />
+            </div>
+          </>
         )}
         {phase === 'review' && result && (
           <>
