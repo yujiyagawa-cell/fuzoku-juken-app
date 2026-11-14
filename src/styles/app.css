@@ -854,3 +854,146 @@ a {
   border-radius: 999px;
   background: #2f6fdb;
 }
+
+/* ---- うたのカード（A4） ---- */
+.songcard {
+  width: 210mm;
+  height: 297mm;
+  padding: 13mm 15mm 10mm;
+  background: #fff;
+  color: #1e2a3b;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'UD Digi Kyokasho N', 'UD デジタル 教科書体 N', 'Klee One', 'Zen Maru Gothic', sans-serif;
+  font-weight: 700;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.sc-head {
+  position: relative;
+  background: var(--bg);
+  border: 1.2mm solid var(--ink);
+  border-radius: 9mm;
+  padding: 5mm 8mm 4mm;
+  text-align: center;
+}
+
+.sc-icons {
+  display: flex;
+  justify-content: center;
+  gap: 4mm;
+  line-height: 1;
+}
+
+.sc-emo {
+  font-family: 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', sans-serif;
+  font-size: 23mm;
+  font-weight: 400;
+}
+
+.sc-title {
+  margin: 2mm 0 0;
+  line-height: 1.15;
+  color: var(--ink);
+  letter-spacing: 0.6mm;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.sc-ban {
+  position: absolute;
+  left: 7mm;
+  top: 5mm;
+  background: #fff;
+  color: var(--ink);
+  border: 0.8mm solid var(--ink);
+  border-radius: 99mm;
+  padding: 1.2mm 4mm;
+  font-size: 6mm;
+}
+
+.sc-lyrics {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4mm 4mm 0;
+  min-height: 0;
+}
+
+.sc-lyric {
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  border-bottom: 0.4mm solid #e3e8f0;
+}
+
+.sc-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  margin-top: 4mm;
+}
+
+.sc-line {
+  position: relative;
+  height: 18mm;
+  border-bottom: 0.7mm solid #8a97ab;
+}
+
+.sc-line span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 0.4mm dashed #c9d2e0;
+}
+
+.sc-foot {
+  margin-top: 4mm;
+  font-family: 'Zen Maru Gothic', sans-serif;
+  font-weight: 500;
+  font-size: 3.4mm;
+  color: #8a97ab;
+  text-align: right;
+}
+
+.sc-scaler {
+  overflow: hidden;
+  border-radius: 6px;
+  box-shadow: 0 1px 6px rgba(30, 42, 59, 0.18);
+  background: #fff;
+}
+
+.print-only {
+  display: none;
+}
+
+/* 印刷：カードだけを A4 で出す */
+@media print {
+  .print-only {
+    display: block !important;
+  }
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-card {
+    break-after: page;
+    page-break-after: always;
+  }
+  .print-card:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

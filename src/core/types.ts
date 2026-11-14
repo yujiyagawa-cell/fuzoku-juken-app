@@ -138,6 +138,13 @@ export interface SongLink {
   url: string;
 }
 
+/** うたのカードに保護者が貼りつけた歌詞（このスマホの中だけ。公開しない） */
+export interface SongText {
+  songId: string;
+  text: string;
+  updatedAt: string;
+}
+
 export interface Idea {
   id: string;
   text: string;

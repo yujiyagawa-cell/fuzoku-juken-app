@@ -11,6 +11,7 @@ import type {
   SessionRec,
   Settings,
   SongLink,
+  SongText,
   WaitingLog
 } from './types';
 
@@ -26,6 +27,7 @@ class AppDB extends Dexie {
   songLinks!: Table<SongLink, string>;
   ideas!: Table<Idea, string>;
   kanaSeeds!: Table<KanaSeed, string>;
+  songTexts!: Table<SongText, string>;
 
   constructor() {
     super('fuzoku-juken');
@@ -42,6 +44,8 @@ class AppDB extends Dexie {
       ideas: 'id, createdAt',
       kanaSeeds: 'key'
     });
+    // v2：うたのカードに保護者が貼りつけた歌詞（このスマホの中だけ）
+    this.version(2).stores({ songTexts: 'songId' });
   }
 }
 
@@ -58,7 +62,8 @@ export const TABLE_NAMES = [
   'reviews',
   'songLinks',
   'ideas',
-  'kanaSeeds'
+  'kanaSeeds',
+  'songTexts'
 ] as const;
 
 export function uid(): string {

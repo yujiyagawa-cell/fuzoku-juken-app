@@ -111,6 +111,15 @@ export const SONGS: Song[] = [
   }
 ];
 
+/**
+ * 著作権の保護期間が終わった歌の歌詞（歌詞カードの最初の文）。
+ * ちょうちょう：作詞 野村秋足（1902年没）。いまの「はなから はなへ」は1947年の文部省の改作で、これも保護期間が終わっている。
+ * ほかの11曲は保護期間中なので入れない（保護者が調べて歌詞カードに貼りつける）。
+ */
+export const PUBLIC_DOMAIN_LYRICS: Record<string, string> = {
+  choucho: ['ちょうちょう ちょうちょう', 'なのはに とまれ', 'なのはに あいたら', 'さくらに とまれ', 'さくらの はなの', 'はなから はなへ', 'とまれよ あそべ', 'あそべよ とまれ'].join('\n')
+};
+
 export function songById(id: string): Song | undefined {
   return SONGS.find((s) => s.id === id);
 }

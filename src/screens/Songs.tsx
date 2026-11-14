@@ -5,6 +5,7 @@ import { lyricsSearchUrl, lyricVideoSearchUrl, SONGS, youtubeSearchUrl } from '.
 import { BackButton, Header, Modal, ParentStrip, useToast } from '../ui/components';
 import { Emoji } from '../ui/emoji';
 import { Icon } from '../ui/icons';
+import { navigate } from '../ui/router';
 
 // うたの曲（保護者）：出るかもしれない12曲。歌詞・音源はアプリに入れず、YouTube で聞いて覚える。
 
@@ -54,6 +55,9 @@ export function Songs() {
                   <a className="tiny" href={lyricVideoSearchUrl(s)} target="_blank" rel="noopener noreferrer">
                     歌詞付き動画
                   </a>
+                  <button className="tiny" style={{ border: 0, background: 'none', padding: 0, color: 'var(--parent)', textDecoration: 'underline' }} onClick={() => navigate(`/songcard?song=${s.id}`)}>
+                    歌詞カード
+                  </button>
                   <button className="tiny" style={{ border: 0, background: 'none', padding: 0, color: 'var(--parent)' }} onClick={() => { setEdit(s.id); setUrl(own ?? ''); }}>
                     {own ? '動画を変える' : '動画を決める'}
                   </button>

@@ -15,6 +15,7 @@ import { SetSetup } from './screens/SetSetup';
 import { Songs } from './screens/Songs';
 import { Calendar } from './screens/Calendar';
 import { Start } from './screens/Start';
+import { SongCardEditor, SongCardPrint } from './screens/SongCard';
 import { BackButton, Header } from './ui/components';
 import { Icon } from './ui/icons';
 import { useMode } from './ui/mode';
@@ -28,6 +29,7 @@ import { navigate, useRoute } from './ui/router';
 //  #/calendar        がんばりカレンダー（子どもも見られる）
 //  #/start?env=…     設定つきURL（ほかのスマホで同じ設定から始める）／ #/start?fresh=1 ゼロから始める
 //  #/songs           うたの曲リスト（YouTube リンク）
+//  #/songcard?song=id 歌詞カード（保護者が歌詞を貼りつける。この端末だけ）／ #/songcard-print?song=id|all 印刷
 //  #/progress        進捗（レベル）一覧
 //  #/records         記録（推移・苦手）
 //  #/log?item=id     運動・生活ログ
@@ -36,7 +38,7 @@ import { navigate, useRoute } from './ui/router';
 //  #/settings        設定
 //  #/onboarding      はじめての設定
 
-const PARENT_ONLY = new Set(['progress', 'records', 'log', 'netacho', 'catalog', 'settings', 'songs']);
+const PARENT_ONLY = new Set(['progress', 'records', 'log', 'netacho', 'catalog', 'settings', 'songs', 'songcard']);
 
 function ParentLock() {
   return (
@@ -64,12 +66,16 @@ export function App() {
 
   useEffect(() => {
     // 設定つきURL・ゼロから始めるURL（#/start）は、はじめての設定より先に開く
-    if (ready && !settings.onboarded && route.path !== '/onboarding' && route.path !== '/start') navigate('/onboarding', { replace: true });
+    if (ready && !settings.onboarded && route.path !== '/onboarding' && route.path !== '/start' && route.path !== '/songcard-print') navigate('/onboarding', { replace: true });
   }, [ready, settings.onboarded, route.path]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [route.path]);
+
+  // 歌詞カードの印刷は A4 のまま出すので、アプリの枠（幅480px）の外に置く。設定を待たずに出す
+  // （子どもが見るカードなので、印刷の画面は子どもモードでも開ける）
+  if (route.parts[0] === 'songcard-print') return <SongCardPrint />;
 
   if (!ready) {
     return (
@@ -95,6 +101,9 @@ export function App() {
         break;
       case 'results':
         screen = <Results />;
+        break;
+      case 'songcard':
+        screen = <SongCardEditor />;
         break;
       case 'start':
         screen = <Start />;
