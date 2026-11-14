@@ -8,6 +8,8 @@ import { resample, type Pt, type TraceKind } from './trace';
 export const PEN_COLOR = '#16181d';
 export const PEN_WIDTH = 4.5;
 export const SHAPE_COLOR = '#d0453a';
+/** 形の大きさ（キャンバスの短い辺に対する s の割合。長方形の横は 1.5s、円の直径は 1.2s） */
+export const SHAPE_SCALE = 0.22;
 
 export type Painter = (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 
@@ -41,7 +43,8 @@ export function drawStrokes(ctx: CanvasRenderingContext2D, strokes: Pt[][]) {
 /** 形を1つ、中央に赤っぽい線で描く */
 export function shapePainter(shape: ShapeId): Painter {
   return (ctx, w, h) => {
-    const s = Math.min(w, h) * 0.3;
+    // 形は小さめにして、まわりに描く場所を広くとる（本番の紙も、形のまわりは広い）
+    const s = Math.min(w, h) * SHAPE_SCALE;
     ctx.save();
     ctx.strokeStyle = SHAPE_COLOR;
     ctx.lineWidth = 4;

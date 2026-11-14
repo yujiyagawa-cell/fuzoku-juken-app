@@ -97,7 +97,7 @@ export function shapeByType(typeId: string): ShapeDef | undefined {
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
-/** 形の大きさの目安。s は基準の長さ（キャンバスの短い辺 × 0.3 くらい） */
+/** 形の大きさの目安。s は基準の長さ（キャンバスの短い辺 × SHAPE_SCALE。DrawCanvas.tsx） */
 export function shapeBox(shape: ShapeId, cx: number, cy: number, s: number): { x0: number; y0: number; x1: number; y1: number } {
   switch (shape) {
     case 'rect':

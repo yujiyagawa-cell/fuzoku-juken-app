@@ -109,9 +109,12 @@ export function KakitashiRunner({ count, types, session, onDone }: RunnerProps) 
   useEffect(() => {
     const el = wrapRef.current;
     if (!el || size) return;
-    // 下の保護者パネル・ボタンと重ならない高さにする（スクロールせずに描けるように）
+    // 画面の空いている高さを使う（形のまわりに描く場所を広くとる）。
+    // 下の「さいしょから・できた」と保護者パネルには重ならないように（スクロールせずに描けるように）
     const w = Math.max(260, Math.floor(el.clientWidth));
-    const h = Math.round(Math.min(w * 1.05, Math.max(260, window.innerHeight - 430)));
+    const canvasTop = el.getBoundingClientRect().top + 40; // 上の案内（チップ）の分
+    const below = 84 + 76; // ボタンの列 ＋ 下の保護者パネル
+    const h = Math.round(Math.max(260, Math.min(w * 1.35, window.innerHeight - canvasTop - below)));
     setSize({ w, h });
   }, [items, size]);
 
