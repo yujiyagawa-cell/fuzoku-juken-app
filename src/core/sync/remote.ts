@@ -1,3 +1,5 @@
+import { isChunkLoadError } from '../appUpdate';
+
 // 記録の共有：ネット上の保存先（Firestore）とのやりとりの形。
 // engine.ts はこの形だけを使う（テストでは、メモリの中のにせものに置きかえる）。
 
@@ -63,6 +65,8 @@ export function chunkRows(rows: RemoteRow[], maxCount = 100, maxChars = 4_000_00
 export function describeSyncError(e: unknown): string {
   const code = String((e as { code?: unknown } | null)?.code ?? '');
   const msg = String((e as { message?: unknown } | null)?.message ?? e ?? '');
+  if (isChunkLoadError(e))
+    return 'アプリの新しい版を読みこみます。自動で開き直らないときは、アプリを閉じて開き直してから、もう一度ためしてください。';
   if (code === 'auth/operation-not-allowed' || code === 'auth/admin-restricted-operation')
     return 'Firebase の「Authentication」→「ログイン方法」で「匿名」を有効にしてください。';
   if (code.startsWith('auth/invalid-api-key') || code === 'auth/api-key-not-valid.-please-pass-a-valid-api-key.' || /api[- ]key/i.test(msg))

@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './App';
+import { reloadForNewVersion } from './core/appUpdate';
 import { unlockAudio } from './core/audio';
 import { loadTokenizer } from './core/reading';
 import { SettingsProvider } from './core/settings';
@@ -10,6 +11,11 @@ import './styles/app.css';
 
 // Service Worker（オフラインで起動できるように。更新は自動）
 registerSW({ immediate: true });
+
+// 新しい版に入れかわったあと、古い画面のまま部品を読めなかったら、開き直して新しい版にする
+window.addEventListener('vite:preloadError', () => {
+  reloadForNewVersion();
+});
 
 // 音（ブザー・手拍子）は最初のタップのあとで鳴らせるようになる
 window.addEventListener('pointerdown', () => unlockAudio(), { once: true });

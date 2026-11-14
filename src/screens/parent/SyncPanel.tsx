@@ -59,9 +59,29 @@ function SetupSteps({ onToast }: { onToast: (m: string) => void }) {
   );
 }
 
+// 貼りつけた設定は、ページを開き直しても消えないよう、このタブの中だけに置いておく（新しい版への開き直しなど）
+const PASTE_KEY = 'fz-sync-paste';
+
+function readPaste(): string {
+  try {
+    return sessionStorage.getItem(PASTE_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function writePaste(t: string): void {
+  try {
+    if (t) sessionStorage.setItem(PASTE_KEY, t);
+    else sessionStorage.removeItem(PASTE_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
 export function SyncPanel({ onToast }: { onToast: (m: string) => void }) {
   const st = useSyncStatus();
-  const [text, setText] = useState('');
+  const [text, setText] = useState(readPaste);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [showSteps, setShowSteps] = useState(false);
@@ -83,6 +103,7 @@ export function SyncPanel({ onToast }: { onToast: (m: string) => void }) {
           value={text}
           onChange={(e) => {
             setText(e.target.value);
+            writePaste(e.target.value);
             setErr('');
           }}
           placeholder={'const firebaseConfig = {\n  apiKey: "…",\n  authDomain: "…",\n  projectId: "…",\n  …\n};'}
@@ -112,6 +133,7 @@ export function SyncPanel({ onToast }: { onToast: (m: string) => void }) {
             try {
               await enableSync(fb);
               setText('');
+              writePaste('');
               onToast('共有を始めました');
             } catch (e) {
               setErr(describeSyncError(e));
