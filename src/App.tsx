@@ -14,6 +14,7 @@ import { Results } from './screens/Results';
 import { SetSetup } from './screens/SetSetup';
 import { Songs } from './screens/Songs';
 import { Calendar } from './screens/Calendar';
+import { Works } from './screens/Works';
 import { Start } from './screens/Start';
 import { SongCardEditor, SongCardPrint } from './screens/SongCard';
 import { BackButton, Header } from './ui/components';
@@ -27,6 +28,7 @@ import { navigate, useRoute } from './ui/router';
 //  #/play            練習（plan.ts に保存した計画を実行）
 //  #/results/<id>    セット結果
 //  #/calendar        がんばりカレンダー（子どもも見られる）
+//  #/works?tab=e|uta&day=YYYY-MM-DD  うたと え（うたった うたと、かいた え。子どもも見られる）
 //  #/start?env=…     設定つきURL（ほかのスマホで同じ設定から始める）／ #/start?fresh=1 ゼロから始める
 //  #/songs           うたの曲リスト（YouTube リンク）
 //  #/songcard?song=id 歌詞カード（保護者が歌詞を貼りつける。この端末だけ）／ #/songcard-print?song=id|all 印刷
@@ -110,6 +112,9 @@ export function App() {
         break;
       case 'calendar':
         screen = <Calendar />;
+        break;
+      case 'works':
+        screen = <Works />;
         break;
       case 'songs':
         screen = <Songs />;

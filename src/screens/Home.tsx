@@ -9,6 +9,7 @@ import { TAIKI_STEPS } from '../modules/taiki';
 import { startPlan, type Plan } from '../player/plan';
 import type { ModuleDef } from '../player/types';
 import { Header, IconBadge, ParentStrip } from '../ui/components';
+import { Emoji } from '../ui/emoji';
 import { Icon, type IconName } from '../ui/icons';
 import { useMode } from '../ui/mode';
 import { navigate } from '../ui/router';
@@ -123,6 +124,15 @@ export function Home() {
   const { settings } = useSettings();
   const { isParent } = useMode();
   const mySets = useLive(() => db.mySets.toArray(), [], [] as MySet[]);
+  // うたと え：かいた え の まい数と、うたった かい数
+  const works = useLive(
+    async () => {
+      const [drawings, songs] = await Promise.all([db.drawings.count(), db.attempts.where('moduleId').equals('uta').count()]);
+      return { drawings, songs };
+    },
+    [],
+    { drawings: 0, songs: 0 }
+  );
   const waits = useLive(() => db.waitingLogs.toArray(), [], [] as WaitingLog[]);
   const todayMin = useLive(
     async () => {
@@ -183,6 +193,18 @@ export function Home() {
           ) : (
             <span className="small muted">きょうは まだ</span>
           )}
+          <Icon name="right" size={18} style={{ color: 'var(--faint)' }} />
+        </button>
+        <button
+          onClick={() => navigate('/works')}
+          className="row"
+          style={{ width: '100%', marginTop: 8, padding: '8px 12px', borderRadius: 16, border: '1px solid var(--line)', background: '#fff', textAlign: 'left' }}
+        >
+          <Emoji char="🎨" size={22} />
+          <span style={{ flex: 1, fontWeight: 900, whiteSpace: 'nowrap' }}>うたと え</span>
+          <span className="small muted">
+            え {works.drawings}まい・うた {works.songs}かい
+          </span>
           <Icon name="right" size={18} style={{ color: 'var(--faint)' }} />
         </button>
       </div>

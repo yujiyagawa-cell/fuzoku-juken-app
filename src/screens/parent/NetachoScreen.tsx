@@ -45,9 +45,22 @@ function StarButton({ d }: { d: Drawing }) {
   );
 }
 
-export function Viewer({ d, onClose }: { d: Drawing; onClose: () => void }) {
+/** 絵を大きく見る。readOnly（子どもモード）では、◎と削除を出さない */
+export function Viewer({ d, onClose, readOnly = false }: { d: Drawing; onClose: () => void; readOnly?: boolean }) {
   const [confirm, setConfirm] = useState(false);
   const shape = SHAPES.find((s) => s.id === d.shape);
+  if (readOnly) {
+    return (
+      <Modal open onClose={onClose} title="かいた え">
+        <div className="stack" style={{ gap: 10 }}>
+          <img src={d.pngDataUrl} alt="かいた え" style={{ width: '100%', borderRadius: 16, border: '1px solid var(--line)', background: '#fff' }} />
+          <button className="btn btn-primary btn-block" onClick={onClose}>
+            とじる
+          </button>
+        </div>
+      </Modal>
+    );
+  }
   return (
     <Modal open onClose={onClose} title={`${shape?.name ?? d.shape}の絵`}>
       <div className="stack" style={{ gap: 10 }}>

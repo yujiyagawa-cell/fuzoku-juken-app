@@ -9,6 +9,7 @@ import { BackButton, Header, ParentStrip } from '../ui/components';
 import { Emoji } from '../ui/emoji';
 import { Icon } from '../ui/icons';
 import { useMode } from '../ui/mode';
+import { navigate } from '../ui/router';
 
 // がんばりカレンダー：れんしゅうした日に スタンプ。日をタップすると、その日にやったことが ならぶ。
 
@@ -219,9 +220,26 @@ export function Calendar() {
             {e!.drawings.length > 0 && (
               <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
                 {e!.drawings.slice(0, 6).map((d) => (
-                  <img key={d.id} src={d.pngDataUrl} alt="かいた え" style={{ width: 64, height: 64, objectFit: 'contain', background: '#fff', border: '1px solid var(--line)', borderRadius: 10 }} />
+                  <button
+                    key={d.id}
+                    onClick={() => navigate(`/works?tab=e&day=${sel}`)}
+                    aria-label="かいた え を みる"
+                    style={{ padding: 0, border: 'none', background: 'none' }}
+                  >
+                    <img src={d.pngDataUrl} alt="かいた え" style={{ width: 64, height: 64, objectFit: 'contain', background: '#fff', border: '1px solid var(--line)', borderRadius: 10, display: 'block' }} />
+                  </button>
                 ))}
               </div>
+            )}
+            {(e!.drawings.length > 0 || e!.modules.some((m) => m.moduleId === 'uta')) && (
+              <button
+                className="btn btn-outline btn-sm"
+                style={{ alignSelf: 'flex-start' }}
+                onClick={() => navigate(`/works?tab=${e!.drawings.length > 0 ? 'e' : 'uta'}&day=${sel}`)}
+              >
+                <Emoji char="🎨" size={16} />
+                この ひの うたと え を みる
+              </button>
             )}
           </div>
         )}
