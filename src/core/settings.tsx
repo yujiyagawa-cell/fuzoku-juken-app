@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { db } from './db';
 import type { Settings } from './types';
 import { setTtsConfig } from './speech/tts';
+import { SETTINGS_REMOTE_EVENT } from './sync/rows';
 
 export const DEFAULT_SETTINGS: Settings = {
   childName: '',
@@ -83,6 +84,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setSettings(s);
       setReady(true);
     });
+    // 記録の共有で、ほかのスマホから設定が届いたら読み直す
+    const reload = () => {
+      loadSettings().then(setSettings);
+    };
+    window.addEventListener(SETTINGS_REMOTE_EVENT, reload);
+    return () => window.removeEventListener(SETTINGS_REMOTE_EVENT, reload);
   }, []);
 
   useEffect(() => {

@@ -4,14 +4,16 @@ import { db, nowIso, TABLE_NAMES } from '../../core/db';
 import { DEFAULT_SETTINGS, useSettings } from '../../core/settings';
 import { getVoices, japaneseVoices, speak } from '../../core/speech/tts';
 import { resetVoiceFailure, useVoiceState, voiceReasonText } from '../../core/speech/voice';
+import { disableSync, useSyncStatus } from '../../core/sync';
 import type { PropertyKind, Settings } from '../../core/types';
 import { Modal, Seg, Switch, useToast } from '../../ui/components';
 import { Icon } from '../../ui/icons';
 import { navigate } from '../../ui/router';
 import { ChipButtons, ParentScreen, SectionTitle } from './parentParts';
 import { ShareLinks } from './ShareLinks';
+import { SyncPanel } from './SyncPanel';
 
-// 設定：子どもの情報・試験日・本番再現ルール・読み上げ・ことば・書き足し・音声認識・性質の候補・データ
+// 設定：子どもの情報・試験日・記録の共有・ほかのスマホで使う・本番再現ルール・読み上げ・ことば・書き足し・音声認識・性質の候補・データ
 
 function Field({ label, hint, children, inline = false }: { label: string; hint?: ReactNode; children: ReactNode; inline?: boolean }) {
   return (
@@ -247,6 +249,8 @@ async function importAll(b: Backup) {
 }
 
 async function deleteAll() {
+  // 記録の共有もやめる（共有している記録＝ほかのスマホの分は消さない）
+  await disableSync();
   await db.transaction('rw', db.tables, async () => {
     for (const t of db.tables) await t.clear();
   });
@@ -255,6 +259,7 @@ async function deleteAll() {
 export function SettingsScreen() {
   const { settings: s, update } = useSettings();
   const voice = useVoiceState();
+  const sync = useSyncStatus();
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [toast, showToast] = useToast();
   const [pending, setPending] = useState<Backup | null>(null);
@@ -295,6 +300,16 @@ export function SettingsScreen() {
             onChange={(e) => /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) && update({ examDate: e.target.value })}
           />
         </Field>
+      </Group>
+
+      <SectionTitle>記録の共有（スマホどうし）</SectionTitle>
+      <Group>
+        <SyncPanel onToast={showToast} />
+      </Group>
+
+      <SectionTitle>ほかのスマホで使う</SectionTitle>
+      <Group>
+        <ShareLinks onToast={showToast} />
       </Group>
 
       <SectionTitle>本番再現ルール</SectionTitle>
@@ -474,11 +489,6 @@ export function SettingsScreen() {
         <PropertyEditor s={s} update={update} />
       </Group>
 
-      <SectionTitle>ほかのスマホで使う</SectionTitle>
-      <Group>
-        <ShareLinks onToast={showToast} />
-      </Group>
-
       <SectionTitle>データ</SectionTitle>
       <Group>
         <Field label="書き出し（機種変更・バックアップ用）" hint="記録・絵・設定をすべて1つの JSON ファイルにします">
@@ -522,6 +532,7 @@ export function SettingsScreen() {
           <div className="stack" style={{ gap: 10 }}>
             <p className="small" style={{ margin: 0, lineHeight: 1.6 }}>
               {new Date(pending.exportedAt).toLocaleString('ja-JP')} に書き出したファイルです。いまのデータは、このファイルの中身に置きかわります。
+              {sync.on && '記録の共有をしているので、共有している記録は残ります（ファイルにない記録も、共有から戻ります）。'}
             </p>
             <div className="small muted">
               {TABLE_NAMES.filter((t) => Array.isArray(pending.tables[t]))
@@ -549,6 +560,7 @@ export function SettingsScreen() {
         <div className="stack" style={{ gap: 10 }}>
           <p className="small" style={{ margin: 0, lineHeight: 1.6, color: 'var(--bad)' }}>
             記録・絵・練習ログ・マイセット・設定をすべて削除します。元に戻せません。先に「JSON で書き出す」でバックアップを取っておくと安心です。
+            {sync.on && 'このスマホの記録の共有もやめます（ほかのスマホの記録と、共有している記録は消えません）。'}
           </p>
           <button
             className="btn btn-danger"

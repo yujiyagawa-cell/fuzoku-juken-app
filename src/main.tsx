@@ -4,6 +4,7 @@ import { App } from './App';
 import { unlockAudio } from './core/audio';
 import { loadTokenizer } from './core/reading';
 import { SettingsProvider } from './core/settings';
+import { startSyncIfConfigured } from './core/sync';
 import { ModeProvider } from './ui/mode';
 import './styles/app.css';
 
@@ -17,6 +18,11 @@ window.addEventListener('pointerdown', () => unlockAudio(), { once: true });
 setTimeout(() => {
   loadTokenizer().catch((e) => console.warn('kuromoji', e));
 }, 1500);
+
+// 記録の共有（スマホどうし）をしていれば、つなぐ（Firebase は、共有しているときだけ読みこむ）
+setTimeout(() => {
+  startSyncIfConfigured().catch((e) => console.warn('sync', e));
+}, 800);
 
 createRoot(document.getElementById('root')!).render(
   <SettingsProvider>

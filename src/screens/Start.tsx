@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { appBaseUrl, applyEnv, decodeEnv, hasLocalData, wipeAll, type EnvSnapshot } from '../core/envLink';
 import { examDateLabel } from '../core/dates';
+import { enableSync, fromEnvSync, loadSyncConfig } from '../core/sync';
+import { describeSyncError } from '../core/sync/remote';
 import { Header } from '../ui/components';
 import { Icon } from '../ui/icons';
 import { navigate, useRoute } from '../ui/router';
@@ -11,6 +13,15 @@ function goHomeReload(path: string) {
   // 設定を読み直すために、ページごと開き直す（URL に入っていた設定は履歴に残さない）
   window.location.replace(`${appBaseUrl()}#${path}`);
   window.location.reload();
+}
+
+/** 設定つきURLに入っていた共有先につなぐ（同じ共有先にもうつないでいれば、そのまま） */
+async function joinSync(snap: EnvSnapshot): Promise<void> {
+  const fb = snap.y ? fromEnvSync(snap.y) : null;
+  if (!fb) return;
+  const cur = await loadSyncConfig();
+  if (cur && cur.fb.projectId === fb.projectId && cur.fb.apiKey === fb.apiKey) return;
+  await enableSync(fb);
 }
 
 function Shell({ title, children }: { title: string; children: ReactNode }) {
@@ -35,6 +46,7 @@ export function Start() {
   const [error, setError] = useState(false);
   const [hasData, setHasData] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
+  const [joinError, setJoinError] = useState('');
 
   useEffect(() => {
     hasLocalData().then(setHasData);
@@ -60,6 +72,39 @@ export function Start() {
       );
     }
     if (!snap || hasData === null) return <Shell title="よみこみちゅう…">{null}</Shell>;
+    if (joinError) {
+      return (
+        <Shell title="記録の共有に つなげませんでした">
+          <div className="card" style={{ background: 'var(--warn-bg)', borderColor: '#f3d2b8' }}>
+            <div className="small" style={{ color: 'var(--warn)', lineHeight: 1.6, fontWeight: 700 }}>
+              {joinError}
+            </div>
+          </div>
+          <p className="tiny muted" style={{ margin: 0, lineHeight: 1.6 }}>
+            設定は入りました。共有は「もう一度」で、つなぎ直せます。あとから、このURLをもう一度開いてもつながります。
+          </p>
+          <button
+            className="btn btn-primary btn-block"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await joinSync(snap);
+                goHomeReload('/');
+              } catch (e) {
+                setJoinError(describeSyncError(e));
+                setBusy(false);
+              }
+            }}
+          >
+            もう一度
+          </button>
+          <button className="btn btn-ghost btn-block" onClick={() => goHomeReload('/')}>
+            共有なしで はじめる
+          </button>
+        </Shell>
+      );
+    }
     const s = snap.s;
     const name = [s.childName, s.childNameKanji ? `（${s.childNameKanji}）` : ''].join('');
     return (
@@ -80,6 +125,11 @@ export function Start() {
             {snap.m?.length ? `／マイセット ${snap.m.length}件` : ''}
             {snap.l?.length ? `／うたの動画 ${snap.l.length}件` : ''}
           </div>
+          {snap.y && (
+            <div style={{ fontWeight: 700 }}>
+              <Icon name="refresh" size={16} /> 記録の共有：あり
+            </div>
+          )}
         </div>
         {hasData && (
           <div className="card" style={{ background: 'var(--warn-bg)', borderColor: '#f3d2b8' }}>
@@ -89,7 +139,10 @@ export function Start() {
           </div>
         )}
         <p className="tiny muted" style={{ margin: 0, lineHeight: 1.6 }}>
-          記録（進捗）は入っていません。記録も移すときは、もとのスマホの「設定 → データの書き出し」で作ったファイルを、このスマホで読み込んでください。マイクの許可は、はじめて声で答えるときに聞かれます。
+          {snap.y
+            ? '記録の共有に入ります。家族のスマホの記録・描いた絵・歌詞が このスマホにも入り、このスマホの記録も共有に送られます。ネットにつないだ状態で押してください。'
+            : '記録（進捗）は入っていません。記録も移すときは、もとのスマホの「設定 → データの書き出し」で作ったファイルを、このスマホで読み込んでください。'}
+          マイクの許可は、はじめて声で答えるときに聞かれます。
         </p>
         <button
           className="btn btn-primary btn-big btn-block"
@@ -97,11 +150,18 @@ export function Start() {
           onClick={async () => {
             setBusy(true);
             await applyEnv(snap);
+            try {
+              await joinSync(snap);
+            } catch (e) {
+              setJoinError(describeSyncError(e));
+              setBusy(false);
+              return;
+            }
             goHomeReload('/');
           }}
         >
           <Icon name="check" size={22} />
-          この設定で はじめる
+          {busy && snap.y ? 'つないでいます…' : 'この設定で はじめる'}
         </button>
         <button className="btn btn-ghost btn-block" onClick={() => navigate('/', { replace: true })}>
           やめる

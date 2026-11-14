@@ -1,10 +1,12 @@
 import { db, nowIso, TABLE_NAMES } from './db';
 import { loadSettings, mergeSettings, saveSettings } from './settings';
+import { disableSync, loadSyncConfig, toEnvSync, type EnvSync } from './sync';
 import type { MySet, ReviewMark, Settings } from './types';
 
 // ほかのスマホで同じ設定から始めるための「設定つきURL」
 // - 入れるもの：子どもの情報・試験日・ルールなどの設定、問題カタログの評価、マイセット、うたの動画リンク、苦手な音
-// - 入れないもの：記録（進捗）・描いた絵（大きいので、記録は「データの書き出し・読み込み」で移す）、声の種類（端末ごとにちがう）
+//   記録の共有をしているときは、共有先（Firebase の設定）も入れる → 開いたスマホも共有に入る
+// - 入れないもの：記録（進捗）・描いた絵（大きいので、共有か「データの書き出し・読み込み」で移す）、声の種類（端末ごとにちがう）
 // - URL の # のうしろに入れるので、サーバーには送られない（ただしリンクを見た人には中身が分かる）
 
 export interface EnvSnapshot {
@@ -14,6 +16,7 @@ export interface EnvSnapshot {
   m?: MySet[];
   l?: [string, string][]; // うたの動画 [songId, url]
   k?: [string, 2 | 3][]; // 苦手な音（手で足したもの）[kana, length]
+  y?: EnvSync; // 記録の共有先
 }
 
 export async function buildEnvSnapshot(): Promise<EnvSnapshot> {
@@ -28,6 +31,8 @@ export async function buildEnvSnapshot(): Promise<EnvSnapshot> {
   if (songLinks.length) snap.l = songLinks.map((x) => [x.songId, x.url]);
   const k = seeds.filter((x) => x.source === 'manual').map((x) => [x.kana, x.length] as [string, 2 | 3]);
   if (k.length) snap.k = k;
+  const sync = await loadSyncConfig();
+  if (sync) snap.y = toEnvSync(sync.fb);
   return snap;
 }
 
@@ -114,8 +119,9 @@ export async function hasLocalData(): Promise<boolean> {
   return false;
 }
 
-/** 記録・絵・設定をすべて消す */
+/** 記録・絵・設定をすべて消す（記録の共有もやめる。共有している記録は消さない） */
 export async function wipeAll(): Promise<void> {
+  await disableSync();
   await db.transaction('rw', db.tables, async () => {
     for (const t of db.tables) await t.clear();
   });

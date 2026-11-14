@@ -142,3 +142,17 @@ src/ui/         共通部品(components.tsx)・アイコン(icons.tsx)・絵文�
 - 練習ログ：Lv0 記録なし／Lv1 やった（最新が × か目標未満）／Lv2 1回でも ○（または目標達成）／Lv3 最新2回つづけて ○／Lv4 最新3回つづけて ○ かつ（きれいさがあれば 3、秒の目標があれば達成）。
 - 待機（`taiki-wait` の行）：Lv0 記録なし／Lv1 やった／Lv2 5分成功／Lv3 10分成功／Lv4 20分成功（`waitingLogs` の success と durationMin）。
 - じゅんび度 = Σ(priority × level/4) ÷ Σ(priority)。examReadiness は source が「本番」の項目だけ。
+
+## 記録の共有（スマホどうし）（2026-11-14 追加）
+
+- 保存先：保護者が作る Firebase プロジェクトの Firestore。`rows` コレクション1つ（1家族だけが使うプロジェクトなので、合言葉なし）。匿名ログイン＋ルール `allow read, write: if request.auth != null`（`FIRESTORE_RULES`）。
+- Firebase の設定は、公開しているアプリ・リポジトリには入れない。設定画面に貼りつけ → `db.syncMeta`（このスマホだけ）。家族のスマホへは設定つきURL（`EnvSnapshot.y`）で渡す。
+- `src/core/sync/`
+  - `rows.ts`：共有する表（`SYNC_TABLES` = `TABLE_NAMES`）、行キー、canonical JSON とハッシュ。設定の端末ごとの項目（`voiceURI`・`onboarded`）は送らず、受けとっても このスマホの値を残す。
+  - `dirty.ts`：このスマホで変わった行。`db.ts` の DBCore ミドルウェアが書く（localStorage にも保存）。共有から入れた行（トランザクションに `__fzSync`）はおぼえない。表の `clear()` は「消した」と扱わず、全部受けとり直す（JSON の読み込み・設定つきURL）。
+  - `engine.ts`：受けとる（前に受けとった時刻 `cursor` より新しい行だけ。このスマホの未送信の変更の方が新しければ残す）→ はじめてのときは保存先の内容に合わせてから、全部の行を見直して送る（保存先にない行・変わった行・消した行）。
+  - `firestoreRemote.ts`：Firebase SDK（共有しているときだけ動的 import。最初の読みこみを重くしない）。
+  - `index.ts`：始める（`enableSync`）・やめる（`disableSync`）・アプリを開いたとき（`startSyncIfConfigured`）・ようす（`useSyncStatus`）。
+- 1行 = 1文書 `{ t, k, j: JSON 文字列, del, u: 変わった時刻 ms, d: 端末 ID, su: serverTimestamp }`。文書 ID は `表~encodeURIComponent(主キー)`。900KB をこえる行は送らない。
+- 「全部削除」「ゼロから始める」は、先にこのスマホの共有をやめる（共有している記録は消さない）。
+- テスト：`src/core/sync/engine.test.ts`（fake-indexeddb ＋ メモリの中の保存先）。npm は firebase と fake-indexeddb（テスト用）を足した（保護者の依頼）。

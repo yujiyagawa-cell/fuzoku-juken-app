@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { buildEnvSnapshot, encodeEnv, envLinkUrl, freshLinkUrl } from '../../core/envLink';
+import { useSyncStatus } from '../../core/sync';
 import { Icon } from '../../ui/icons';
 
 // 設定：ほかのスマホで使う（設定つきURL／ゼロから始めるURL）
 
-async function copyText(text: string): Promise<boolean> {
+export async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
@@ -26,7 +27,7 @@ async function shareUrl(url: string, title: string): Promise<'shared' | 'copied'
   return (await copyText(url)) ? 'copied' : 'failed';
 }
 
-function UrlBox({ url, label, onToast }: { url: string; label: string; onToast: (m: string) => void }) {
+export function UrlBox({ url, label, onToast }: { url: string; label: string; onToast: (m: string) => void }) {
   return (
     <div className="stack" style={{ gap: 6 }}>
       <textarea
@@ -61,20 +62,35 @@ function UrlBox({ url, label, onToast }: { url: string; label: string; onToast: 
 export function ShareLinks({ onToast }: { onToast: (m: string) => void }) {
   const [envUrl, setEnvUrl] = useState('');
   const [making, setMaking] = useState(false);
+  const sync = useSyncStatus();
   const fresh = freshLinkUrl();
+
+  // 共有を始めた・やめたら、URL を作り直す（共有先が入る・入らない）
+  useEffect(() => setEnvUrl(''), [sync.on]);
 
   return (
     <div className="stack" style={{ gap: 14, padding: '10px 0' }}>
       <p className="small muted" style={{ margin: 0, lineHeight: 1.6, fontWeight: 500 }}>
-        記録と設定は、スマホ（ブラウザ）ごとに保存されます。ほかのスマホでも同じ設定で始めたいときは「設定つきURL」を送ってください。
+        {sync.on
+          ? '記録の共有をしているので、設定つきURLで開いたスマホは、設定がそろい、記録の共有にも入ります。'
+          : '記録と設定は、スマホ（ブラウザ）ごとに保存されます。ほかのスマホでも同じ設定で始めたいときは「設定つきURL」を送ってください。'}
       </p>
 
       <div className="stack" style={{ gap: 6 }}>
-        <div style={{ fontWeight: 900 }}>設定つきURL（登録ずみの設定から始める）</div>
+        <div style={{ fontWeight: 900 }}>{sync.on ? '設定つきURL（ほかのスマホをつなぐ）' : '設定つきURL（登録ずみの設定から始める）'}</div>
         <div className="tiny muted" style={{ fontWeight: 500, lineHeight: 1.6 }}>
-          子どもの情報・試験日・ルール・問題カタログの評価・マイセット・うたの動画が入ります。記録（進捗）と描いた絵は入りません。
-          <b style={{ color: 'var(--warn)' }}> 子どもの名前と誕生日が入るので、家族だけに送ってください。</b>
-          設定を変えたら、作り直してください。
+          {sync.on ? (
+            <>
+              子どもの情報・試験日・ルールなどの設定と、記録の共有先（Firebase）が入ります。開いたスマホの記録・描いた絵・歌詞も、共有にそろいます。
+              <b style={{ color: 'var(--warn)' }}> このURLを知っている人は、記録を見たり書きかえたりできます。家族だけに送ってください。</b>
+            </>
+          ) : (
+            <>
+              子どもの情報・試験日・ルール・問題カタログの評価・マイセット・うたの動画が入ります。記録（進捗）と描いた絵は入りません。
+              <b style={{ color: 'var(--warn)' }}> 子どもの名前と誕生日が入るので、家族だけに送ってください。</b>
+              設定を変えたら、作り直してください。
+            </>
+          )}
         </div>
         {envUrl ? (
           <UrlBox url={envUrl} label="設定つきURL" onToast={onToast} />
