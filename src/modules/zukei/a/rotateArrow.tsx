@@ -24,8 +24,8 @@ function ShapeSvg({ shape, d }: { shape: 'tri' | 'arrow'; d: number }) {
   );
 }
 
-export function generateRotateArrow(rng: Rng) {
-  const shape: 'tri' | 'arrow' = rng.chance(0.65) ? 'tri' : 'arrow';
+export function generateRotateArrow(rng: Rng, only?: 'tri' | 'arrow') {
+  const shape: 'tri' | 'arrow' = only ?? (rng.chance(0.65) ? 'tri' : 'arrow');
   const d0 = rng.int(0, 3);
   const n = rng.chance(0.55) ? 1 : 2;
   const dir: 'cw' | 'ccw' = rng.chance(0.6) ? 'cw' : 'ccw';
@@ -67,9 +67,22 @@ export const rotateArrowType: QuestionType = {
   genre: 'zukei',
   moduleId: 'zukei',
   source: 'ノート',
-  description: '▷（三角）や矢印を右（左）に1回＝90°、2回＝180°回すと、どの向きになるか。4つの向きから選ぶ。',
+  description: '▷（三角）を右（左）に1回＝90°、2回＝180°回すと、どの向きになるか。4つの向きから選ぶ。',
   priority: 2,
   answer: 'tap',
   speedTargetSec: 6,
-  generate: generateRotateArrow
+  generate: (rng) => generateRotateArrow(rng, 'tri')
+};
+
+export const rotateMarkType: QuestionType = {
+  id: 'zukei-rotate-arrow-mark',
+  name: '矢印の回転',
+  genre: 'zukei',
+  moduleId: 'zukei',
+  source: 'アプリ（追加）',
+  description: '矢印を右（左）に1回＝90°、2回＝180°回すと、どの向きになるか。▷の回転と同じ形式で、プリントにはない（アプリで足した）。',
+  priority: 1,
+  answer: 'tap',
+  speedTargetSec: 6,
+  generate: (rng) => ({ ...generateRotateArrow(rng, 'arrow'), type: 'zukei-rotate-arrow-mark' })
 };

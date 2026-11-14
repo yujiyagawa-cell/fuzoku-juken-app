@@ -195,11 +195,11 @@ function taleChoice(id: string) {
   return { id, node: <Emoji char={e.char} size={52} />, label: e.label };
 }
 
-function generateMukashi(rng: Rng): TapQuestion {
-  const tale = rng.pick(TALES);
+function generateMukashi(rng: Rng, only?: 'in' | 'notIn'): TapQuestion {
+  const tale = only === 'notIn' ? rng.pick(TALES.filter((t) => t.items.length >= 3)) : rng.pick(TALES);
   const blocked = new Set([...tale.items, ...tale.maybe]);
   const outsiders = Object.keys(TALE_ELEMS).filter((id) => !blocked.has(id) && !NEVER_DISTRACT.has(id));
-  const variant: 'in' | 'notIn' = tale.items.length >= 3 && rng.chance(0.4) ? 'notIn' : 'in';
+  const variant: 'in' | 'notIn' = only ?? (tale.items.length >= 3 && rng.chance(0.4) ? 'notIn' : 'in');
   const pickDistinct = (pool: string[], n: number, avoidChars: string[]) => {
     const out: string[] = [];
     const chars = new Set(avoidChars);
@@ -245,11 +245,24 @@ export const mukashiType: QuestionType = {
   genre: 'zukei',
   moduleId: 'zukei',
   source: 'ノート（予想）',
-  description: '昔話・童話（ももたろう・さるかに・おむすびころりん・さんびきのこぶた・おおきなかぶ 等、著作権の切れた話）に「でてくるもの」「でてこないもの」を選ぶ。',
+  description: '昔話・童話（ももたろう・さるかに・おむすびころりん・さんびきのこぶた・おおきなかぶ 等、著作権の切れた話）に「でてくるもの」を選ぶ（ノート「絵本の題名を答える、内容に関連するもの選ぶ」）。',
   priority: 1,
   answer: 'tap',
   speedTargetSec: 6,
-  generate: generateMukashi
+  generate: (rng) => generateMukashi(rng, 'in')
+};
+
+export const mukashiNotType: QuestionType = {
+  id: 'zukei-mukashi-not',
+  name: '昔話・絵本（でてこないもの）',
+  genre: 'zukei',
+  moduleId: 'zukei',
+  source: 'アプリ（追加）',
+  description: '「◯◯の おはなしに でてこないのは どれですか」。ノートは「内容に関連するもの選ぶ」なので、反対の聞き方はアプリで足したもの。',
+  priority: 1,
+  answer: 'tap',
+  speedTargetSec: 6,
+  generate: (rng) => ({ ...generateMukashi(rng, 'notIn'), type: 'zukei-mukashi-not' })
 };
 
 // =====================================================================

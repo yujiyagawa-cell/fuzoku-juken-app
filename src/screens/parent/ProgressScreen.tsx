@@ -15,8 +15,9 @@ import {
   type ProgressItem
 } from '../../core/progress';
 import { useSettings } from '../../core/settings';
-import type { Attempt, PracticeLog, WaitingLog } from '../../core/types';
+import type { Attempt, PracticeLog, Review, WaitingLog } from '../../core/types';
 import { QUESTION_TYPES, typeById } from '../../modules/registry';
+import { isTypeActive, markMap } from '../../modules/scope';
 import { IconBadge, JudgeMark, Modal, Seg } from '../../ui/components';
 import { Icon } from '../../ui/icons';
 import { navigate } from '../../ui/router';
@@ -264,13 +265,18 @@ export function ProgressScreen() {
   const attempts = useLive(() => db.attempts.toArray(), [], [] as Attempt[]);
   const practiceLogs = useLive(() => db.practiceLogs.toArray(), [], [] as PracticeLog[]);
   const waitingLogs = useLive(() => db.waitingLogs.toArray(), [], [] as WaitingLog[]);
+  const reviews = useLive(() => db.reviews.toArray(), [], [] as Review[]);
   const { settings } = useSettings();
   const [filter, setFilter] = useState<Filter>('all');
   const [open, setOpen] = useState<ProgressItem | null>(null);
 
   const result = useMemo(
-    () => computeProgress({ attempts, practiceLogs, waitingLogs, types: QUESTION_TYPES }),
-    [attempts, practiceLogs, waitingLogs]
+    // ふだん出す問題（プリントにある問題＋カタログで「良い」にした問題）だけで進み具合を出す
+    () => {
+      const marks = markMap(reviews);
+      return computeProgress({ attempts, practiceLogs, waitingLogs, types: QUESTION_TYPES.filter((t) => isTypeActive(t, marks)) });
+    },
+    [attempts, practiceLogs, waitingLogs, reviews]
   );
   const recs = useMemo(() => recommendItems(result.items), [result]);
   const days = daysUntil(settings.examDate);

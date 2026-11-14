@@ -10,6 +10,7 @@ import type { QuestionType, RunnerProps, TapQuestion, TapResult } from '../../pl
 import { VoiceStage } from '../../player/voice';
 import { ParentPanel } from '../../ui/components';
 import { makeStory, templateOfType, type Story } from './stories';
+import { isInPrint, isTypeActive, markMap } from '../scope';
 import { OHANASHI_TYPES } from './types';
 
 // お話の記憶：スタート → お話を1回だけ読み上げ（文字は出さない）→ 4問をタップで → 1問ずつ記録
@@ -20,10 +21,10 @@ async function pickTypes(count: number, types?: string[]): Promise<QuestionType[
   let list: QuestionType[] = [];
   if (types?.length) list = OHANASHI_TYPES.filter((t) => types.includes(t.id));
   if (!list.length) {
-    const reviews = await db.reviews.toArray();
-    const off = new Set(reviews.filter((r) => r.mark === 'off').map((r) => r.typeId));
-    list = OHANASHI_TYPES.filter((t) => !off.has(t.id));
-    if (!list.length) list = OHANASHI_TYPES;
+    // ふだんはプリントにあるお話だけ（scope.ts）
+    const marks = markMap(await db.reviews.toArray());
+    list = OHANASHI_TYPES.filter((t) => isTypeActive(t, marks));
+    if (!list.length) list = OHANASHI_TYPES.filter(isInPrint);
   }
   const rng = makeRng();
   const out: QuestionType[] = [];

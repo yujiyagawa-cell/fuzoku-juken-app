@@ -35,7 +35,7 @@ src/ui/         共通部品(components.tsx)・アイコン(icons.tsx)・絵文�
 
 ## 問題の契約（src/player/types.ts）
 
-- `QuestionType`：カタログ・進捗・おまかせの単位。`id` は全体で一意（例 `zukei-rotate-box`）。`source` は `'本番' | 'ノート' | 'ノート（予想）' | 'とっくん42' | 'とっくん65' | '365日' | '仕様'` のどれか。`priority` 3=本番で出た・最重要、2=ノートにある、1=予想・補助。`speedTargetSec` は「答えるまでの秒数」の目標（進捗の Lv4 判定に使う）。
+- `QuestionType`：カタログ・進捗・おまかせの単位。`id` は全体で一意（例 `zukei-rotate-box`）。`source` は `'本番' | 'ノート' | 'ノート（予想）' | 'とっくん42' | 'とっくん65' | '365日' | '仕様' | 'アプリ（追加）'` のどれか。**ふだん出すのはプリント（本番・ノート・ノート（予想））にある問題だけ**。それ以外はカタログで「良い」にしたときだけ出す（`src/modules/scope.ts`）。種類を指定した練習ではどれでも出せる。`priority` 3=本番で出た・最重要、2=ノートにある、1=予想・補助。`speedTargetSec` は「答えるまでの秒数」の目標（進捗の Lv4 判定に使う）。
 - タップ問題は `generate(rng) => TapQuestion` を持つ。`rng`（`src/core/rng.ts`）だけを乱数に使う（同じ seed なら同じ問題）。
 - `TapQuestion`：`prompt`（ひらがな・分かち書き。保護者パネルに出る）、`speech`（読み上げ用。漢字まじり可。省略で prompt）、`figure`（問題の絵）、`choices`（3〜4択が基本。`id` は一意、`label` はひらがなの名前）、`answer`（choice の id。order モードは正しい順の id 配列）、`params`（記録用の小さな JSON。ReactNode を入れない）、`explain`（保護者向けの説明）、`askReason`（答えたあと「どうして その こたえ ですか」と聞く）、`preview`（先に見せて隠す：絵の記憶）。
 - 表示：`TapRound` が `figure` を `.figure-card`（白・角丸）に、選択肢を `.choice` ボタン（4択は 2列×2行、3択は3列）に入れる。画面幅は 330〜380px。図は `<svg viewBox=... style={{ width: '100%', maxHeight: 230 }}>`、選択肢の絵は `style={{ width: '100%', maxHeight: 110 }}` くらい。線は `#1e2a3b`・太さ 2.5〜3、塗りは淡い色（#dceeff・#fff2c6・#e2f5e6・#ffe4ec など）。色だけで区別させない。

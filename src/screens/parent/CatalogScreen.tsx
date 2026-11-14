@@ -9,6 +9,7 @@ import { Icon } from '../../ui/icons';
 import { navigate } from '../../ui/router';
 import { ChipButtons, fmtMD, ParentScreen, SourceChip, Stars } from './parentParts';
 import { QuestionPreview } from './QuestionPreview';
+import { isInPrint } from '../../modules/scope';
 
 // 問題カタログ：ジャンルごとに全タイプの見本を見て、良い／直す／外す を決める。外すとおまかせ・連続出題で出なくなる。
 
@@ -98,6 +99,11 @@ function TypeCard({ t, review, seed, onReseed }: { t: QuestionType; review?: Rev
           </div>
           <div className="row" style={{ flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
             <SourceChip source={t.source} />
+            {!isInPrint(t) && (
+              <span className="chip" style={{ background: review?.mark === 'good' ? 'var(--good-bg)' : '#f0f3f8', color: review?.mark === 'good' ? 'var(--good)' : 'var(--muted)' }}>
+                {review?.mark === 'good' ? 'プリント外・出す' : 'プリント外・ふだんは出さない'}
+              </span>
+            )}
             <Stars n={t.priority} />
             <span className="tiny muted">
               {ANSWER_LABEL[t.answer]}

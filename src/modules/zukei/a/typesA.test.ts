@@ -20,7 +20,9 @@ const IDS = [
   'zukei-series',
   'zukei-coordinates',
   'zukei-puzzle',
-  'zukei-split'
+  'zukei-split',
+  'zukei-ferris-reverse',
+  'zukei-rotate-arrow-mark'
 ];
 
 const typeOf = (id: string) => ZUKEI_A_TYPES.find((t) => t.id === id)!;
@@ -28,7 +30,7 @@ const answerLabel = (q: ReturnType<NonNullable<(typeof ZUKEI_A_TYPES)[number]['g
   q.choices.find((c) => c.id === q.answer)!.label;
 
 describe('図形・推理 A：タイプ一覧', () => {
-  it('13タイプ・id が表のとおりで一意', () => {
+  it('15タイプ（プリント外の聞き方2つを含む）・id が表のとおりで一意', () => {
     expect(ZUKEI_A_TYPES.map((t) => t.id)).toEqual(IDS);
     for (const t of ZUKEI_A_TYPES) {
       expect(t.genre).toBe('zukei');

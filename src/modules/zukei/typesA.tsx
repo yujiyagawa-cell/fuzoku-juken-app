@@ -1,8 +1,8 @@
 import type { QuestionType } from '../../player/types';
 import { coordinatesType } from './a/coordinates';
-import { ferrisType } from './a/ferris';
+import { ferrisReverseType, ferrisType } from './a/ferris';
 import { puzzleType } from './a/puzzle';
-import { rotateArrowType } from './a/rotateArrow';
+import { rotateArrowType, rotateMarkType } from './a/rotateArrow';
 import { rotateBoxType } from './a/rotateBox';
 import { rotateGridType } from './a/rotateGrid';
 import { rotateTableType } from './a/rotateTable';
@@ -26,5 +26,8 @@ export const ZUKEI_A_TYPES: QuestionType[] = [
   seriesType,
   coordinatesType,
   puzzleType,
-  splitType
+  splitType,
+  // プリントにない聞き方（ふだんは出さない。カタログで「良い」にすると出る）
+  ferrisReverseType,
+  rotateMarkType
 ];

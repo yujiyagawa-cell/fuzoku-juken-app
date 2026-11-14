@@ -4,6 +4,7 @@ import { funLabel } from '../core/dates';
 import type { MySet, MySetItem, WaitingLog } from '../core/types';
 import { MODULES, typesOfModule } from '../modules/registry';
 import { TAIKI_STEPS } from '../modules/taiki';
+import { isInPrint } from '../modules/scope';
 import { startPlan } from '../player/plan';
 import type { ModuleDef } from '../player/types';
 import { BackButton, Header, Modal, Seg, useToast } from '../ui/components';
@@ -192,6 +193,7 @@ export function SetSetup() {
                               onClick={() => patch(m.id, { types: on ? e.types.filter((x) => x !== t.id) : [...e.types, t.id] })}
                             >
                               {t.name}
+                              {isInPrint(t) ? '' : '（プリント外）'}
                             </button>
                           );
                         })}

@@ -1,5 +1,6 @@
 import type { QuestionType } from '../player/types';
 import { GENRES } from './genres';
+import { isInPrint } from '../modules/scope';
 import { PRACTICE_ITEMS, type PracticeItem } from './practiceItems';
 import type { Attempt, GenreId, PracticeLog, WaitingLog } from './types';
 
@@ -82,7 +83,7 @@ export interface ProgressInput {
   practiceLogs: PracticeLog[];
   waitingLogs: WaitingLog[];
   types: QuestionType[];
-  practiceItems?: PracticeItem[]; // 省略で PRACTICE_ITEMS
+  practiceItems?: PracticeItem[]; // 省略で PRACTICE_ITEMS のうちプリントにあるもの
 }
 
 export interface GenreProgress {
@@ -277,7 +278,8 @@ export function evalWaitingLogs(logs: WaitingLog[]): WaitingEval {
 // ---- 全体 ----
 
 export function computeProgress(input: ProgressInput): ProgressResult {
-  const practiceItems = input.practiceItems ?? PRACTICE_ITEMS;
+  // ふだんはプリントにある練習だけで数える（scope.ts）
+  const practiceItems = input.practiceItems ?? PRACTICE_ITEMS.filter(isInPrint);
   const byType = new Map<string, Attempt[]>();
   for (const a of input.attempts) {
     const l = byType.get(a.questionType);

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../core/db';
+import { isInPrint, isTypeActive, markMap } from '../modules/scope';
 import { makeRng, type Rng } from '../core/rng';
 import { useSettings } from '../core/settings';
 import { cancelSpeak } from '../core/speech/tts';
@@ -21,10 +22,10 @@ export async function activeTypes(pool: QuestionType[], types?: string[]): Promi
     const f = list.filter((t) => types.includes(t.id));
     if (f.length) return f;
   }
-  const reviews = await db.reviews.toArray();
-  const off = new Set(reviews.filter((r) => r.mark === 'off').map((r) => r.typeId));
-  const on = list.filter((t) => !off.has(t.id));
-  return on.length ? on : list;
+  // ふだんはプリントにある問題だけ（カタログで「良い」にしたプリント外の問題も出す。scope.ts）
+  const marks = markMap(await db.reviews.toArray());
+  const on = list.filter((t) => isTypeActive(t, marks));
+  return on.length ? on : list.filter(isInPrint).length ? list.filter(isInPrint) : list;
 }
 
 export function buildSequence(rng: Rng, list: QuestionType[], count: number): QuestionType[] {

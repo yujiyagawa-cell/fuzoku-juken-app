@@ -132,9 +132,12 @@ function RopeCell({ pts }: { pts: Pt[] }) {
 const TRAIN_COLORS = [FILL.blue, FILL.yellow, FILL.green, FILL.pink];
 const PENCIL_COLORS = ['#9cc3f0', '#f2cf63', '#8fd1a5', '#f5a3bd'];
 
-function generateLength(rng: Rng): TapQuestion {
+type LengthVariant = 'train' | 'pencil' | 'rope';
+
+function generateLength(rng: Rng, allowed: LengthVariant[] = ['train', 'pencil', 'rope']): TapQuestion {
   const r = rng.next();
-  const variant: 'train' | 'pencil' | 'rope' = r < 0.5 ? 'train' : r < 0.75 ? 'pencil' : 'rope';
+  let variant: LengthVariant = r < 0.5 ? 'train' : r < 0.75 ? 'pencil' : 'rope';
+  if (!allowed.includes(variant)) variant = allowed[Math.floor(r * allowed.length) % allowed.length];
   const ask: Ask = rng.chance(0.5) ? 'max' : 'min';
   const word = ask === 'max' ? { k: 'ながい', s: '長い' } : { k: 'みじかい', s: '短い' };
 
@@ -207,11 +210,24 @@ export const lengthType: QuestionType = {
   genre: 'zukei',
   moduleId: 'zukei',
   source: '本番',
-  description: '本番は「電車の一番長いもの・一番短いもの」。電車は車両の数、鉛筆はマス目、ひもは折れ線のマスを数える。端をそろえない問題もある。',
+  description: '本番は「電車の一番長いもの・一番短いもの」、ノートに「電車、えんぴつの長さ比べ」。電車は車両の数、鉛筆はマス目を数える。端をそろえない問題もある。',
   priority: 3,
   answer: 'tap',
   speedTargetSec: 8,
-  generate: generateLength
+  generate: (rng) => generateLength(rng, ['train', 'pencil'])
+};
+
+export const lengthRopeType: QuestionType = {
+  id: 'zukei-length-rope',
+  name: '長さくらべ（ひも）',
+  genre: 'zukei',
+  moduleId: 'zukei',
+  source: '仕様',
+  description: '折れ曲がったひもの長さを、マスを数えてくらべる。仕様書にある問題で、プリントにはない。',
+  priority: 1,
+  answer: 'tap',
+  speedTargetSec: 10,
+  generate: (rng) => ({ ...generateLength(rng, ['rope']), type: 'zukei-length-rope' })
 };
 
 // =====================================================================
@@ -233,11 +249,11 @@ function Glass({ width, height, level }: { width: number; height: number; level:
   );
 }
 
-function generateWater(rng: Rng): TapQuestion {
+function generateWater(rng: Rng, askOnly?: Ask): TapQuestion {
   const variant: 'level' | 'width' = rng.chance(0.6) ? 'level' : 'width';
   const n = rng.chance(0.7) ? 4 : 3;
   if (variant === 'level') {
-    const ask: Ask = rng.chance(0.6) ? 'max' : 'min';
+    const ask: Ask = askOnly ?? (rng.chance(0.6) ? 'max' : 'min');
     const units = rng.sample([1, 2, 3, 4, 5, 6], n);
     const choices: Choice[] = units.map((u, i) => ({ id: `c${i}`, node: <Glass width={40} height={78} level={8 + u * 10} />, label: colLabel(i, 'コップ') }));
     const ai = uniqueExtreme(units, ask);
@@ -253,7 +269,7 @@ function generateWater(rng: Rng): TapQuestion {
       params: { variant, ask, values: units }
     };
   }
-  const ask: Ask = rng.chance(0.7) ? 'max' : 'min';
+  const ask: Ask = askOnly ?? (rng.chance(0.7) ? 'max' : 'min');
   const widths = rng.sample([20, 28, 36, 44, 52], n);
   const heights = widths.map(() => rng.pick([50, 58, 66, 74, 82]));
   const choices: Choice[] = widths.map((w, i) => ({ id: `c${i}`, node: <Glass width={w} height={heights[i]} level={30} />, label: colLabel(i, 'いれもの') }));
@@ -283,11 +299,24 @@ export const waterType: QuestionType = {
   genre: 'zukei',
   moduleId: 'zukei',
   source: 'ノート',
-  description: '同じコップで水の高さがちがう／ちがう太さの入れもので水の高さが同じ（太いほど多い）。「いちばん多い」「いちばん少ない」。',
+  description: 'ノート「水がたくさん入っているのは？」。同じコップで水の高さがちがう／ちがう太さの入れもので水の高さが同じ（太いほど多い）。',
   priority: 2,
   answer: 'tap',
   speedTargetSec: 6,
-  generate: generateWater
+  generate: (rng) => generateWater(rng, 'max')
+};
+
+export const waterLeastType: QuestionType = {
+  id: 'zukei-water-least',
+  name: '水の量（いちばん少ない）',
+  genre: 'zukei',
+  moduleId: 'zukei',
+  source: 'アプリ（追加）',
+  description: '「水が いちばん すくないのは どれですか」。プリントは「たくさん入っているのは？」だけなので、反対の聞き方はアプリで足したもの。',
+  priority: 1,
+  answer: 'tap',
+  speedTargetSec: 6,
+  generate: (rng) => ({ ...generateWater(rng, 'min'), type: 'zukei-water-least' })
 };
 
 // =====================================================================

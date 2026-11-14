@@ -41,11 +41,11 @@ function Ferris({ animals, dir }: { animals: EmojiItem[]; dir: 'cw' | 'ccw' }) {
   );
 }
 
-export function generateFerris(rng: Rng) {
+export function generateFerris(rng: Rng, form?: 'A' | 'B') {
   const N = rng.chance(0.6) ? 6 : 8;
   const animals = rng.sample(ANIMALS, N);
   const dir: 'cw' | 'ccw' = rng.chance(0.6) ? 'cw' : 'ccw';
-  const formB = rng.chance(0.25);
+  const formB = form ? form === 'B' : rng.chance(0.25);
   const mod = (x: number) => ((x % N) + N) % N;
   const figure = <Ferris animals={animals} dir={dir} />;
   const ids = animals.map((a) => a.id);
@@ -102,9 +102,22 @@ export const ferrisType: QuestionType = {
   genre: 'zukei',
   moduleId: 'zukei',
   source: '本番',
-  description: '6〜8個のゴンドラに動物。矢印の向きに◯こ動くと一番上に来るのはどれか（または、◯◯が一番上に来るのは何こ動いたときか）。答えたあと「どうして その こたえですか」と理由を聞く。',
+  description: '6〜8個のゴンドラに動物。矢印の向きに◯こ動くと一番上に来るのはどれか（本番の聞き方）。答えたあと「どうして その こたえですか」と理由を聞く。',
   priority: 3,
   answer: 'tap',
   speedTargetSec: 8,
-  generate: generateFerris
+  generate: (rng) => generateFerris(rng, 'A')
+};
+
+export const ferrisReverseType: QuestionType = {
+  id: 'zukei-ferris-reverse',
+  name: '観覧車（何こ動いたか）',
+  genre: 'zukei',
+  moduleId: 'zukei',
+  source: 'アプリ（追加）',
+  description: '観覧車の逆の聞き方：「◯◯が いちばん うえに くるのは、なんこ うごいた ときですか」。プリントにはない（アプリで足した）。',
+  priority: 1,
+  answer: 'tap',
+  speedTargetSec: 8,
+  generate: (rng) => ({ ...generateFerris(rng, 'B'), type: 'zukei-ferris-reverse' })
 };

@@ -80,7 +80,7 @@ export const SHAPES: ShapeDef[] = [
     typeId: 'kakitashi-circle',
     name: '円',
     kidName: 'まる',
-    source: '仕様',
+    source: 'ノート',
     priority: 1,
     examples: ['顔', '太陽', 'ボール'],
     kidExamples: ['かお', 'たいよう', 'ぼーる']

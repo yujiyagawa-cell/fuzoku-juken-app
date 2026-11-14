@@ -187,13 +187,13 @@ function piecePositions(rng: Rng, total: number): { x: number; y: number; flip: 
   return slots.map((s, i) => ({ x: 30 + (s % 6) * 48 + rng.int(-4, 4), y: 36 + Math.floor(s / 6) * 58 + rng.int(-4, 4), flip: flips[i] }));
 }
 
-function generateGloves(rng: Rng): TapQuestion {
-  const variant: 'need' | 'people' = rng.chance(0.65) ? 'need' : 'people';
+function generateGloves(rng: Rng, mode: 'print' | 'more' = 'print'): TapQuestion {
+  const variant: 'need' | 'people' = mode === 'print' ? 'need' : rng.chance(0.5) ? 'need' : 'people';
   if (variant === 'need') {
     const r = rng.next();
-    const item: WearId = r < 0.4 ? 'tebukuro' : r < 0.7 ? 'kutsushita' : r < 0.85 ? 'kutsu' : 'boushi';
+    const item: WearId = mode === 'print' ? (r < 0.5 ? 'tebukuro' : 'kutsushita') : r < 0.5 ? 'kutsu' : 'boushi';
     const w = WEAR[item];
-    const n = rng.int(2, 4);
+    const n = mode === 'print' ? rng.int(3, 4) : rng.int(2, 4);
     const ans = n * w.per;
     const first = rng.chance(0.5);
     const { choices, answerId } = numberChoices(rng, ans, { min: 1, max: 10, traps: [n, ans + 1, ans - 1, n + 1] });
@@ -234,9 +234,22 @@ export const glovesType: QuestionType = {
   genre: 'zukei',
   moduleId: 'zukei',
   source: 'ノート（予想）',
-  description: '「子どもが3人。手袋は全部でいくつ？」（1人に2つ）と、その反対の「何人分ありますか」。帽子は1人に1つ。',
+  description: 'ノート「子供3〜4人の手袋、くつしたの数」。「子どもが3人。手袋は全部でいくつ？」（1人に2つ）。',
   priority: 1,
   answer: 'tap',
   speedTargetSec: 10,
-  generate: generateGloves
+  generate: (rng) => generateGloves(rng, 'print')
+};
+
+export const glovesMoreType: QuestionType = {
+  id: 'zukei-gloves-more',
+  name: '手袋・くつした（くつ・ぼうし・何人分）',
+  genre: 'zukei',
+  moduleId: 'zukei',
+  source: 'アプリ（追加）',
+  description: 'くつ・ぼうしの数（2〜4人）と、反対の「何人分ありますか」。ノートは「子供3〜4人の手袋、くつしたの数」なので、それ以外はアプリで足したもの。',
+  priority: 1,
+  answer: 'tap',
+  speedTargetSec: 10,
+  generate: (rng) => ({ ...generateGloves(rng, 'more'), type: 'zukei-gloves-more' })
 };

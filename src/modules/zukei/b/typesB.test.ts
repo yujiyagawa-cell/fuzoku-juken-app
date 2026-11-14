@@ -89,15 +89,15 @@ function orderFromPairs(items: string[], pairs: [string, string][]): string[] | 
 }
 
 describe('図形・推理 B', () => {
-  it('11タイプ・id が一意・メタデータ', () => {
-    expect(ZUKEI_B_TYPES.length).toBe(11);
-    expect(new Set(ZUKEI_B_TYPES.map((t) => t.id)).size).toBe(11);
+  it('15タイプ（プリント外の聞き方4つを含む）・id が一意・メタデータ', () => {
+    expect(ZUKEI_B_TYPES.length).toBe(15);
+    expect(new Set(ZUKEI_B_TYPES.map((t) => t.id)).size).toBe(15);
     for (const t of ZUKEI_B_TYPES) {
       expect(t.genre).toBe('zukei');
       expect(t.moduleId).toBe('zukei');
       expect(t.answer).toBe('tap');
       expect(typeof t.generate).toBe('function');
-      expect(['本番', 'ノート', 'ノート（予想）', 'とっくん42', 'とっくん65', '365日', '仕様']).toContain(t.source);
+      expect(['本番', 'ノート', 'ノート（予想）', 'とっくん42', 'とっくん65', '365日', '仕様', 'アプリ（追加）']).toContain(t.source);
     }
   });
 
@@ -115,7 +115,8 @@ describe('図形・推理 B', () => {
         seen.add(`${q.prompt}|${JSON.stringify(q.answer)}|${JSON.stringify(q.params)}`);
       }
       // 手袋は「人数×もの」の組み合わせが少ない（ノートどおり 2〜4人）ので、置き方以外のちがいは少なめ
-      expect(seen.size).toBeGreaterThan(t.id === 'zukei-gloves' ? 15 : 40);
+      // 手袋（プリント）は「3〜4人 × 手袋・くつした」の4通りだけ。くつ・ぼうし・何人分も組み合わせが少ない
+      expect(seen.size).toBeGreaterThan(t.id === 'zukei-gloves' ? 3 : t.id === 'zukei-gloves-more' ? 10 : 40);
     });
   }
 

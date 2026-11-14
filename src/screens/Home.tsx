@@ -4,6 +4,7 @@ import { computeProgress, recommendItems, TARGET_READINESS, type Recommendation 
 import { useSettings } from '../core/settings';
 import type { MySet, WaitingLog } from '../core/types';
 import { MODULES, moduleById, QUESTION_TYPES } from '../modules/registry';
+import { isTypeActive, markMap } from '../modules/scope';
 import { TAIKI_STEPS } from '../modules/taiki';
 import { startPlan, type Plan } from '../player/plan';
 import type { ModuleDef } from '../player/types';
@@ -63,7 +64,8 @@ function ReadinessCard() {
   const data = useLive(
     async () => {
       const [attempts, practiceLogs, waitingLogs] = await Promise.all([db.attempts.toArray(), db.practiceLogs.toArray(), db.waitingLogs.toArray()]);
-      const r = computeProgress({ attempts, practiceLogs, waitingLogs, types: QUESTION_TYPES });
+      const marks = markMap(await db.reviews.toArray());
+      const r = computeProgress({ attempts, practiceLogs, waitingLogs, types: QUESTION_TYPES.filter((t) => isTypeActive(t, marks)) });
       return { readiness: r.readiness, exam: r.examReadiness, recs: recommendItems(r.items) };
     },
     [],

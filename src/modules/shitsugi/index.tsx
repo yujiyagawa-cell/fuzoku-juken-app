@@ -7,7 +7,9 @@ import type { PropertyKind, Settings } from '../../core/types';
 import type { ModuleDef, QuestionType, RunnerProps } from '../../player/types';
 import { VoiceQuestion, type AutoJudgeResult, type VoiceQSpec } from '../../player/VoiceQuestion';
 import { Emoji } from '../../ui/emoji';
+import { db } from '../../core/db';
 import { moduleColor } from '../common';
+import { isTypeActive, markMap } from '../scope';
 import { kotobaSpec, pickKotobaPairs } from '../kotoba';
 
 export const SHITSUGI_TYPES: QuestionType[] = [
@@ -29,11 +31,23 @@ export const SHITSUGI_TYPES: QuestionType[] = [
     genre: 'shitsugi',
     moduleId: 'shitsugi',
     source: '本番',
-    description: 'お花を育てている子（本番）・寝ころんでいる子・バッタを見ている子・泣いている子に、なんと声をかけるか。答えたら仮に○、保護者が内容を見て直す。',
+    description: 'お花を育てている子（本番）・寝ころんでいる子・バッタを見ている子（ノート）に、なんと声をかけるか。答えたら仮に○、保護者が内容を見て直す。',
     priority: 3,
     answer: 'voice',
     speedTargetSec: 3,
     sample: 'この こたちが おはなを そだてています。なんと こえを かけますか。'
+  },
+  {
+    id: 'shitsugi-koekake-extra',
+    name: '声かけ（泣いている子）',
+    genre: 'shitsugi',
+    moduleId: 'shitsugi',
+    source: '仕様',
+    description: '泣いている子に、なんと声をかけるか。仕様書の想定問題で、プリントにはない。',
+    priority: 1,
+    answer: 'voice',
+    speedTargetSec: 3,
+    sample: 'ないている こが います。なんと こえを かけますか。'
   },
   {
     id: 'shitsugi-free',
@@ -127,7 +141,7 @@ const FIGURES: Record<string, ReactNode> = {
 // ---- 質問バンク ----
 interface SQ {
   key: string;
-  type: 'shitsugi-profile' | 'shitsugi-koekake' | 'shitsugi-free' | 'shitsugi-property';
+  type: 'shitsugi-profile' | 'shitsugi-koekake' | 'shitsugi-koekake-extra' | 'shitsugi-free' | 'shitsugi-property';
   w: number;
   make: (s: Settings) => VoiceQSpec;
 }
@@ -268,10 +282,10 @@ export const SHITSUGI_BANK: SQ[] = [
   },
   {
     key: 'naku',
-    type: 'shitsugi-koekake',
+    type: 'shitsugi-koekake-extra',
     w: 1,
     make: () => ({
-      ...base('shitsugi-koekake', 'naku'),
+      ...base('shitsugi-koekake-extra', 'naku'),
       prompt: 'ないている こが います。なんと こえを かけますか。',
       speech: 'ないている こが います。なんと こえを かけますか。',
       figure: FIGURES.naku,
@@ -363,9 +377,12 @@ function ShitsugiRunner({ count, types, session, onDone }: RunnerProps) {
     (async () => {
       const rng = makeRng();
       const t = types?.length ? types : null;
-      let bank = SHITSUGI_BANK.filter((q) => !t || t.includes(q.type));
+      // ふだんはプリントにある質問だけ（カタログで「良い」にしたプリント外の質問も出す。scope.ts）
+      const marks = markMap(await db.reviews.toArray());
+      const allowed = t ?? SHITSUGI_TYPES.filter((x) => isTypeActive(x, marks)).map((x) => x.id);
+      let bank = SHITSUGI_BANK.filter((q) => allowed.includes(q.type));
       const wantKotoba = t ? t.some((x) => x.startsWith('kotoba')) : settings.mixKotobaInShitsugi;
-      if (!bank.length && !wantKotoba) bank = SHITSUGI_BANK;
+      if (!bank.length && !wantKotoba) bank = SHITSUGI_BANK.filter((q) => q.type !== 'shitsugi-koekake-extra');
       const out: VoiceQSpec[] = [];
       // 本番どおり、まず名前から
       const name = bank.find((q) => q.key === 'name');
