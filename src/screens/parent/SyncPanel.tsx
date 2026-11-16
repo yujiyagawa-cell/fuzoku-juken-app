@@ -167,9 +167,11 @@ export function SyncPanel({ onToast }: { onToast: (m: string) => void }) {
           いま そろえる
         </button>
       </div>
-      <div className="tiny muted" style={{ fontWeight: 500 }}>
+      <div className="tiny muted" style={{ fontWeight: 500, lineHeight: 1.7 }}>
         最後にそろえた時刻：{timeLabel(st.lastAt)}
         {st.pending ? `　まだ送っていない変更：${st.pending}件` : ''}
+        <br />
+        ほかのスマホの いちばん新しい変更：{st.peerAt ? timeLabel(st.peerAt) : 'まだ届いていません'}
       </div>
       {st.error && (
         <div className="small" style={{ color: 'var(--bad)', lineHeight: 1.6, fontWeight: 700 }}>
@@ -177,7 +179,11 @@ export function SyncPanel({ onToast }: { onToast: (m: string) => void }) {
         </div>
       )}
       <p className="tiny muted" style={{ margin: 0, lineHeight: 1.6, fontWeight: 500 }}>
-        記録（進捗・カレンダー・描いた絵）・設定・歌詞カードが、共有しているスマホでそろいます。声の種類と、保護者モードかどうかは、スマホごとです。ほかのスマホをつなぐときは、下の「設定つきURL」をそのスマホで開いてください。
+        記録（進捗・カレンダー・描いた絵・うたの録音）・設定・歌詞カードが、共有しているスマホでそろいます。声の種類と、保護者モードかどうかは、スマホごとです。
+        <br />
+        ほかのスマホで練習したり歌詞を入れたりしたあと、こちらの「ほかのスマホの いちばん新しい変更」がその時刻になれば、そろっています（両方のスマホでアプリを開いて、ネットにつながっているとき）。
+        <br />
+        ほかのスマホをつなぐときは、下の「設定つきURL」をそのスマホの Chrome で開いてください。
       </p>
       <button
         className="btn btn-ghost btn-sm"

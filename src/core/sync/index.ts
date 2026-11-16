@@ -27,6 +27,7 @@ export interface SyncStatus {
   starting: boolean;
   connected: boolean; // 保存先とつながっている
   lastAt?: number; // 最後にそろえた時刻
+  peerAt?: number; // ほかのスマホから届いた、いちばん新しい変更の時刻
   error?: string;
   pending: number; // まだ送っていない変更
 }
@@ -112,7 +113,7 @@ async function stopEngine(): Promise<void> {
 
 async function runEngine(cfg: SyncConfig, remote?: Remote): Promise<void> {
   await stopEngine();
-  setStatus({ on: true, starting: true, error: '' });
+  setStatus({ on: true, starting: true, error: '', peerAt: undefined });
   const r = remote ?? (await makeRemote(cfg.fb));
   const { SyncEngine } = await import('./engine');
   const e = new SyncEngine(r, cfg.deviceId, (rep) => {
@@ -184,7 +185,7 @@ export async function disableSync(): Promise<void> {
     await db.syncState.clear();
     await db.syncMeta.clear();
   });
-  setStatus({ on: false, starting: false, connected: false, error: '', lastAt: undefined });
+  setStatus({ on: false, starting: false, connected: false, error: '', lastAt: undefined, peerAt: undefined });
 }
 
 /** いますぐ そろえる */

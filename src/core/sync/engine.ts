@@ -16,9 +16,14 @@ export interface EngineReport {
   connected?: boolean;
   lastAt?: number;
   error?: string;
+  peerAt?: number; // ほかのスマホから届いた、いちばん新しい変更の時刻（そのスマホで変えた時刻）
 }
 
 const CURSOR_KEY = 'cursor';
+/** 受けとり（cursor）を進めたときに、このアプリが共有していた表の一覧 */
+const TABLES_KEY = 'tables';
+/** ほかのスマホから届いた、いちばん新しい変更の時刻 */
+const PEER_KEY = 'peer';
 
 export async function readCursor(): Promise<Cursor | null> {
   const v = (await db.syncMeta.get(CURSOR_KEY))?.value as Cursor | undefined;
@@ -57,9 +62,12 @@ export class SyncEngine {
   }
 
   async start(): Promise<void> {
+    const peer = (await db.syncMeta.get(PEER_KEY))?.value;
+    if (typeof peer === 'number') this.report({ peerAt: peer });
     await this.remote.connect();
     if (this.stopped) return;
     await this.run(() => this.resetCleared());
+    await this.run(() => this.checkTables());
     this.listen(await readCursor());
     this.offDirty = dirty.onDirtyChange(() => {
       if (dirty.hasCleared()) void this.run(() => this.resync()).catch((e) => this.fail(e));
@@ -122,7 +130,8 @@ export class SyncEngine {
 
   private async onRemote(docs: RemoteDoc[], meta: ListenMeta): Promise<void> {
     if (this.stopped) return;
-    if (docs.length) await this.apply(docs);
+    const peerAt = docs.length ? await this.apply(docs) : undefined;
+    if (peerAt !== undefined) this.report({ peerAt });
     if (!meta.fromServer) {
       this.report({ connected: false });
       return;
@@ -136,18 +145,26 @@ export class SyncEngine {
     }
   }
 
-  private async apply(docs: RemoteDoc[]): Promise<void> {
+  /** 受けとった行をこのスマホに入れる。ほかのスマホの変更が新しく届いたら、その時刻を返す */
+  private async apply(docs: RemoteDoc[]): Promise<number | undefined> {
     let cursor = await readCursor();
     const done: [string, number][] = [];
     let settingsChanged = false;
+    let peerAt: number | undefined;
     const tables = SYNC_TABLES.map((t) => db.table(t));
     await db.transaction('rw', [...tables, db.syncState, db.syncMeta], async (tx) => {
       // このトランザクションの書きこみは「このスマホの変更」としておぼえない（db.ts の見張り）
       (tx as unknown as SyncMarks).__fzSync = true;
       (tx.idbtrans as unknown as SyncMarks).__fzSync = true;
+      const prevPeer = (await db.syncMeta.get(PEER_KEY))?.value;
+      let peer = typeof prevPeer === 'number' ? prevPeer : 0;
       for (const d of docs) {
         if (cursorAfter(d.at, cursor)) cursor = d.at;
         if (!SYNC_TABLE_SET.has(d.t)) continue;
+        if (d.d && d.d !== this.deviceId && d.u > peer) {
+          peer = d.u;
+          peerAt = d.u;
+        }
         const rk = rowKey(d.t, d.k);
         const mine = dirty.dirtyTime(rk);
         if (mine !== undefined && mine > d.u) continue; // このスマホの変更の方が新しい → あとで送る
@@ -174,9 +191,26 @@ export class SyncEngine {
         if (mine !== undefined) done.push([rk, mine]);
       }
       if (cursor) await db.syncMeta.put({ key: CURSOR_KEY, value: cursor });
+      if (peerAt !== undefined) await db.syncMeta.put({ key: PEER_KEY, value: peerAt });
     });
     for (const [rk, at] of done) dirty.clearDirty(rk, at);
     if (settingsChanged && typeof window !== 'undefined') window.dispatchEvent(new Event(SETTINGS_REMOTE_EVENT));
+    return peerAt;
+  }
+
+  /**
+   * 共有する表が、受けとりを進めたときとちがう（アプリの新しい版で表がふえた）→ 保存先から全部受けとり直す。
+   * 前の版は知らない表の行を読みとばして、受けとり（cursor）だけ先へ進めているので、そのままでは二度と届かない
+   * （新しい版に入れかわる前の数秒に、ほかのスマホの録音が届いたときなど）。
+   * 受けとり直しても、同じ中身の行は書きかえない。
+   */
+  private async checkTables(): Promise<void> {
+    const want = SYNC_TABLES.join(',');
+    if ((await db.syncMeta.get(TABLES_KEY))?.value === want) return;
+    await db.transaction('rw', db.syncMeta, async () => {
+      await db.syncMeta.delete(CURSOR_KEY);
+      await db.syncMeta.put({ key: TABLES_KEY, value: want });
+    });
   }
 
   /** 表をまるごと消した（JSON の読み込みなど）→ その表の「そろえた記録」を忘れて、保存先から全部受けとり直す */

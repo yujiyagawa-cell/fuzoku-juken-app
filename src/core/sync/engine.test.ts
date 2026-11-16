@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db';
 import * as dirty from './dirty';
-import { readCursor, SyncEngine } from './engine';
+import { readCursor, SyncEngine, type EngineReport } from './engine';
 import { cursorAfter, type Cursor, type ListenMeta, type Remote, type RemoteDoc, type RemoteRow } from './remote';
 import { docIdOf, sharedJson } from './rows';
 
@@ -259,5 +259,46 @@ describe('記録の共有', () => {
     await engine.whenIdle();
     expect((await db.attempts.toArray()).map((a) => a.id).sort()).toEqual(['b1', 'b2']);
     expect(remote.pushes.flat().length).toBe(0);
+  });
+
+  it('アプリの新しい版で共有する表がふえたら、保存先から全部受けとり直す（前の版が読みとばした録音など）', async () => {
+    // 前の版が、知らない表（録音）の行を読みとばして、受けとり（cursor）だけ先へ進めた状態
+    const rec = { id: 'r1', attemptId: 'b1', mime: 'audio/webm', dataUrl: 'data:audio/webm;base64,AAAA', durationMs: 1000, createdAt: '2026-11-15T00:00:00.000Z' };
+    const docs = remote.external([remoteRow('recordings', 'r1', rec, Date.now())]);
+    await db.syncMeta.put({ key: 'cursor', value: docs[docs.length - 1].at });
+    await startEngine();
+    expect((await db.recordings.get('r1'))?.attemptId).toBe('b1');
+    expect(remote.pushes.flat().length).toBe(0);
+
+    // 表が同じなら、受けとったところから続ける（全部は読み直さない）
+    await engine!.stop();
+    engine = null;
+    const later = remote.external([remoteRow('attempts', 'b9', attempt('b9'), Date.now())]);
+    await db.syncMeta.put({ key: 'cursor', value: later[0].at });
+    await startEngine();
+    expect(await db.attempts.get('b9')).toBeUndefined();
+  });
+
+  it('ほかのスマホから届いた いちばん新しい変更の時刻を知らせる（このスマホが送った行は数えない）', async () => {
+    remote.external([remoteRow('attempts', 'b1', attempt('b1'), 1000), remoteRow('attempts', 'b2', attempt('b2'), 3000)]);
+    remote.external([remoteRow('attempts', 'm1', attempt('m1'), 9000, 'me')]);
+    const reports: EngineReport[] = [];
+    const lastPeer = (list: EngineReport[]) => list.filter((r) => r.peerAt !== undefined).pop()?.peerAt;
+    dirty.setTracking(true);
+    engine = new SyncEngine(remote, 'me', (r) => reports.push(r), { debounceMs: 0, retryMs: 50 });
+    await engine.start();
+    await engine.whenIdle();
+    expect(lastPeer(reports)).toBe(3000);
+
+    await db.attempts.put(attempt('a1') as never); // このスマホの変更（送ったあと、自分の行として戻ってくる）
+    await engine.whenIdle();
+    expect(lastPeer(reports)).toBe(3000);
+
+    // 開き直しても おぼえている（つながる前に知らせる）
+    await engine.stop();
+    const again: EngineReport[] = [];
+    engine = new SyncEngine(remote, 'me', (r) => again.push(r), { debounceMs: 0, retryMs: 50 });
+    await engine.start();
+    expect(again[0]?.peerAt).toBe(3000);
   });
 });
