@@ -9,6 +9,8 @@ import { navigate, useRoute } from '../ui/router';
 // 「設定つきURL」「ゼロから始めるURL」を開いたときの画面（#/start?env=… ／ #/start?fresh=1）
 // ・設定つきURL：開いたら確認なしで、すぐに設定を入れて（共有先が入っていれば記録の共有にもつないで）ホームへ行く。
 //   すでに同じ共有に入っているスマホでは、リンクの設定は入れない（リンクの設定は古いかもしれない。共有の設定が正しい）。
+//   開いたスマホに記録や設定がすでにあり、共有先が入ったリンクのときだけ、どちらの内容に そろえるかを聞く
+//   （子どもが使ってきたスマホを、あとから共有に入れるとき。「このスマホの内容に そろえる」なら、こちらの設定が残る）。
 //   LINE の中のブラウザで開いたときだけ止めて、Chrome で開き直すよう案内する（記録が Chrome とは別になるため）。
 // ・ゼロから始めるURL：記録を消すので、確認してから消す。
 
@@ -23,11 +25,18 @@ function inLineBrowser(): boolean {
   return typeof navigator !== 'undefined' && /\bLine\//i.test(navigator.userAgent);
 }
 
-/** 設定つきURLで始める：設定を入れて、共有先が入っていれば つなぐ */
-async function startWithLink(snap: EnvSnapshot): Promise<void> {
+/**
+ * 設定つきURLで始める：設定を入れて、共有先が入っていれば つなぐ。
+ * keepMine（このスマホの内容に そろえる）のときは、リンクの設定は入れずに共有につなぎ、同じ行は このスマホの方を残す。
+ */
+async function startWithLink(snap: EnvSnapshot, keepMine = false): Promise<void> {
   const fb = snap.y ? fromEnvSync(snap.y) : null;
   const cur = await loadSyncConfig();
   if (fb && cur && cur.fb.projectId === fb.projectId && cur.fb.apiKey === fb.apiKey) return; // もう同じ共有に入っている
+  if (fb && keepMine) {
+    await enableSync(fb, { preferLocal: true });
+    return;
+  }
   await applyEnv(snap);
   if (fb) await enableSync(fb);
 }
@@ -56,7 +65,9 @@ export function Start() {
   const [busy, setBusy] = useState(false);
   const [joinError, setJoinError] = useState('');
   const [allowInLine, setAllowInLine] = useState(false);
+  const [choice, setChoice] = useState<'auto' | 'ask' | null>(null);
   const started = useRef(false);
+  const keepMine = useRef(false);
   const inLine = inLineBrowser();
 
   useEffect(() => {
@@ -64,11 +75,22 @@ export function Start() {
     if (env) decodeEnv(env).then(setSnap, () => setError(true));
   }, [env]);
 
+  // 開いたスマホに記録や設定がすでにあって、まだその共有に入っていないときだけ、どちらの内容に そろえるかを聞く
+  useEffect(() => {
+    if (!snap || hasData === null) return;
+    const fb = snap.y ? fromEnvSync(snap.y) : null;
+    if (!fb || !hasData) {
+      setChoice('auto');
+      return;
+    }
+    void loadSyncConfig().then((cur) => setChoice(cur && cur.fb.projectId === fb.projectId && cur.fb.apiKey === fb.apiKey ? 'auto' : 'ask'));
+  }, [snap, hasData]);
+
   const run = async (s: EnvSnapshot) => {
     setBusy(true);
     setJoinError('');
     try {
-      await startWithLink(s);
+      await startWithLink(s, keepMine.current);
       goHomeReload('/');
     } catch (e) {
       setJoinError(describeSyncError(e));
@@ -76,13 +98,20 @@ export function Start() {
     }
   };
 
-  // 設定つきURL：開いたら、すぐに始める
+  const choose = (mine: boolean) => {
+    if (!snap || started.current) return;
+    started.current = true;
+    keepMine.current = mine;
+    void run(snap);
+  };
+
+  // 設定つきURL：開いたら、すぐに始める（聞くときは、選んでから）
   useEffect(() => {
-    if (!snap || started.current || (inLine && !allowInLine)) return;
+    if (!snap || choice !== 'auto' || started.current || (inLine && !allowInLine)) return;
     started.current = true;
     void run(snap);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snap, allowInLine]);
+  }, [snap, choice, allowInLine]);
 
   // ゼロから：このスマホに何もなければ、そのまま はじめての設定へ
   useEffect(() => {
@@ -112,7 +141,8 @@ export function Start() {
             </div>
           </div>
           <p className="tiny muted" style={{ margin: 0, lineHeight: 1.6 }}>
-            設定は入りました。共有は「もう一度」で、つなぎ直せます。あとから、このURLをもう一度開いてもつながります。
+            {keepMine.current ? 'このスマホの設定と記録は、そのままです。' : '設定は入りました。'}
+            共有は「もう一度」で、つなぎ直せます。あとから、このURLをもう一度開いてもつながります。
           </p>
           <button className="btn btn-primary btn-block" disabled={busy} onClick={() => run(snap)}>
             {busy ? 'つないでいます…' : 'もう一度'}
@@ -137,6 +167,31 @@ export function Start() {
           <button className="btn btn-ghost btn-block" onClick={() => setAllowInLine(true)}>
             このまま LINE の中で はじめる
           </button>
+        </Shell>
+      );
+    }
+    if (choice === 'ask' && !busy) {
+      return (
+        <Shell title="どちらの内容に そろえますか？">
+          <p className="small" style={{ margin: 0, lineHeight: 1.7 }}>
+            このスマホには、記録や設定がすでにあります。どちらを選んでも、このスマホの記録（練習・描いた絵・うたの録音）は消えずに共有に入り、ほかのスマホの記録も このスマホに届きます。
+          </p>
+          <div className="card stack" style={{ gap: 8 }}>
+            <button className="btn btn-primary btn-block" onClick={() => choose(true)}>
+              このスマホの内容に そろえる
+            </button>
+            <div className="tiny muted" style={{ lineHeight: 1.6, fontWeight: 500 }}>
+              設定（子どもの情報・試験日・ルールなど）と、両方のスマホにある歌詞カード・カタログの評価などは、このスマホのものを使います。共有している ほかのスマホも、この内容になります。
+            </div>
+          </div>
+          <div className="card stack" style={{ gap: 8 }}>
+            <button className="btn btn-outline btn-block" onClick={() => choose(false)}>
+              送ってきたスマホの内容に そろえる
+            </button>
+            <div className="tiny muted" style={{ lineHeight: 1.6, fontWeight: 500 }}>
+              設定などは、このURLを送ってきたスマホのものに置きかわります。
+            </div>
+          </div>
         </Shell>
       );
     }

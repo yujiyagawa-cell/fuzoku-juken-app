@@ -3,6 +3,7 @@ import { db, uid } from '../db';
 import * as dirty from './dirty';
 import type { SyncEngine } from './engine';
 import { describeSyncError, type Remote } from './remote';
+import { rowKey, SYNC_TABLES } from './rows';
 
 // 記録の共有（スマホどうし）：始める・やめる・ようすを見る。
 // 保存先は、保護者が作った Firebase プロジェクト（設定を貼りつける）。設定はアプリ（公開しているもの）には入れず、
@@ -152,11 +153,26 @@ export async function startSyncIfConfigured(): Promise<void> {
 }
 
 /**
+ * このスマホの行を全部「いま変えた」ことにする。共有にある同じ行より新しくなるので、受けとっても このスマホの方が残り、
+ * 共有へ送られて ほかのスマホも この内容になる（共有にしかない行は、ふつうに受けとる）。共有しているときだけ はたらく。
+ */
+export async function markAllLocal(at = Date.now()): Promise<number> {
+  const keys: string[] = [];
+  for (const t of SYNC_TABLES) {
+    const pks = await db.table(t).toCollection().primaryKeys();
+    for (const k of pks) keys.push(rowKey(t, String(k)));
+  }
+  dirty.markRowKeys(keys, at);
+  return keys.length;
+}
+
+/**
  * 共有を始める（このスマホで初めて／家族のスマホから受けとったURLで）。
- * 保存先にすでにある行は保存先の方に合わせ、保存先にない行（このスマホだけの記録）を送る。
+ * ふつうは、保存先にすでにある行は保存先の方に合わせ、保存先にない行（このスマホだけの記録）を送る。
+ * preferLocal のときは、同じ行は このスマホの方を残して送る（このスマホの内容に そろえる）。どちらでも記録は消えない。
  * 設定がまちがっているときは、ここでエラーになる（何も保存しない）。
  */
-export async function enableSync(fb: FirebaseLite): Promise<void> {
+export async function enableSync(fb: FirebaseLite, opts: { preferLocal?: boolean } = {}): Promise<void> {
   await stopEngine();
   const remote = await makeRemote(fb);
   try {
@@ -174,6 +190,7 @@ export async function enableSync(fb: FirebaseLite): Promise<void> {
     await db.syncMeta.put({ key: 'config', value: cfg });
   });
   dirty.setTracking(true);
+  if (opts.preferLocal) await markAllLocal();
   await runEngine(cfg, remote);
 }
 

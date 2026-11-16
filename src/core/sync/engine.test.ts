@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db';
 import * as dirty from './dirty';
 import { readCursor, SyncEngine, type EngineReport } from './engine';
+import { markAllLocal } from './index';
 import { cursorAfter, type Cursor, type ListenMeta, type Remote, type RemoteDoc, type RemoteRow } from './remote';
 import { docIdOf, sharedJson } from './rows';
 
@@ -304,5 +305,37 @@ describe('記録の共有', () => {
     engine = new SyncEngine(remote, 'me', (r) => again.push(r), { debounceMs: 0, retryMs: 50 });
     await engine.start();
     expect(again[0]?.peerAt).toBe(3000);
+  });
+
+  it('このスマホの内容に そろえる：同じ行は このスマホの方が残って送られ、共有にしかない行は受けとる（記録は消えない）', async () => {
+    // 先に共有に入っていたスマホの行
+    const old = Date.now() - 60_000;
+    remote.external([
+      remoteRow('settings', 'main', settingsRow({ childName: 'ほかのスマホ', tapTimeLimitSec: 5 }), old),
+      remoteRow('songTexts', 'zousan', { songId: 'zousan', text: 'ほかのスマホの歌詞', updatedAt: '2026-11-15T00:00:00.000Z' }, old),
+      remoteRow('songTexts', 'kotori', { songId: 'kotori', text: 'ことりの歌詞', updatedAt: '2026-11-15T00:00:00.000Z' }, old),
+      remoteRow('attempts', 'b1', attempt('b1'), old)
+    ]);
+    // 子どもが使ってきたスマホ（まだ共有に入っていない）
+    await db.settings.put(settingsRow({ childName: 'このスマホ', tapTimeLimitSec: 10, voiceURI: 'v', onboarded: true }) as never);
+    await db.songTexts.put({ songId: 'zousan', text: 'このスマホの歌詞', updatedAt: '2026-11-16T00:00:00.000Z' });
+    await db.attempts.put(attempt('a1') as never);
+
+    dirty.setTracking(true);
+    expect(await markAllLocal()).toBe(3);
+    await startEngine();
+
+    const v = (await db.settings.get('main'))!.value as unknown as Record<string, unknown>;
+    expect(v.childName).toBe('このスマホ');
+    expect(v.voiceURI).toBe('v');
+    expect((await db.songTexts.get('zousan'))?.text).toBe('このスマホの歌詞');
+    expect((await db.songTexts.get('kotori'))?.text).toBe('ことりの歌詞');
+    expect((await db.attempts.toArray()).map((a) => a.id).sort()).toEqual(['a1', 'b1']);
+
+    expect(JSON.parse(remote.rowOf('settings', 'main')!.j).value.childName).toBe('このスマホ');
+    expect(JSON.parse(remote.rowOf('songTexts', 'zousan')!.j).text).toBe('このスマホの歌詞');
+    expect(remote.rowOf('attempts', 'a1')?.d).toBe('me');
+    expect(remote.rowOf('attempts', 'b1')?.d).toBe('other');
+    expect(dirty.dirtyCount()).toBe(0);
   });
 });
