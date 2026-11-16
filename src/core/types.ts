@@ -52,6 +52,7 @@ export interface SessionRec {
   endedAt?: string;
   moduleIds: string[];
   mySetId?: string;
+  trial?: boolean; // おためし（見る専用のスマホでの練習）。ホームにもどったら、この練習の記録ごと消す
 }
 
 export interface ParentChecks {

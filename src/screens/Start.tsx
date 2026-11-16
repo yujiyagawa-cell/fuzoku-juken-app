@@ -3,6 +3,7 @@ import { appBaseUrl, applyEnv, decodeEnv, hasLocalData, wipeAll, type EnvSnapsho
 import { examDateLabel } from '../core/dates';
 import { enableSync, fromEnvSync, loadSyncConfig } from '../core/sync';
 import { describeSyncError } from '../core/sync/remote';
+import { clearTrials } from '../core/trial';
 import { Header } from '../ui/components';
 import { navigate, useRoute } from '../ui/router';
 
@@ -43,7 +44,11 @@ async function startWithLink(snap: EnvSnapshot, keepMine = false): Promise<void>
     return;
   }
   if (same) {
-    if (cur?.viewOnly && fb) await enableSync(fb); // 見る専用だったスマホを、ふつうの共有にする
+    if (cur?.viewOnly && fb) {
+      // 見る専用だったスマホを、ふつうの共有にする（おためしの記録は送らないよう、先に消す）
+      await clearTrials();
+      await enableSync(fb);
+    }
     return; // もう同じ共有に入っている
   }
   if (fb && keepMine) {

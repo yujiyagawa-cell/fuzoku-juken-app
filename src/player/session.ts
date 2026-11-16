@@ -1,12 +1,15 @@
 import { db, nowIso, uid } from '../core/db';
+import { isTrialDevice, rememberTrial } from '../core/trial';
 import type { Attempt } from '../core/types';
 import type { SessionApi } from './types';
 
 // 1回の練習（セッション）と、1問ごとの記録（attempt）
+// 見る専用のスマホでは「おためし」にする（ホームにもどったら、この練習の記録ごと消す。core/trial.ts）
 
-export async function createSession(moduleIds: string[], mySetId?: string): Promise<string> {
+export async function createSession(moduleIds: string[], mySetId?: string, trial = isTrialDevice()): Promise<string> {
   const id = uid();
-  await db.sessions.add({ id, startedAt: nowIso(), moduleIds, mySetId });
+  if (trial) rememberTrial(id);
+  await db.sessions.add({ id, startedAt: nowIso(), moduleIds, mySetId, ...(trial ? { trial: true } : {}) });
   return id;
 }
 

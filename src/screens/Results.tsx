@@ -66,6 +66,11 @@ export function Results() {
     <div className="screen">
       <Header />
       <ParentStrip />
+      {session?.trial && (
+        <div className="small pad" style={{ marginTop: 8, fontWeight: 700, color: 'var(--parent)', lineHeight: 1.6 }}>
+          おためし：この結果は記録に残りません（ホームにもどると消えます）
+        </div>
+      )}
       <div className="stage rise" style={{ flex: 'none', padding: '8px 16px 4px', gap: 8 }}>
         <button
           onClick={() => navigate('/calendar')}
