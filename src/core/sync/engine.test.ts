@@ -338,4 +338,24 @@ describe('記録の共有', () => {
     expect(remote.rowOf('attempts', 'b1')?.d).toBe('other');
     expect(dirty.dirtyCount()).toBe(0);
   });
+
+  it('見る専用：共有の行を受けとるだけで、このスマホの行は何も送らない', async () => {
+    await db.attempts.put(attempt('local1') as never); // 見る専用のスマホにだけある行
+    remote.external([remoteRow('attempts', 'b1', attempt('b1'), Date.now())]);
+    engine = new SyncEngine(remote, 'viewer', () => {}, { debounceMs: 0, retryMs: 50, readOnly: true });
+    await engine.start();
+    await engine.whenIdle();
+    expect(await db.attempts.get('b1')).toBeDefined();
+
+    remote.external([remoteRow('attempts', 'b2', attempt('b2'), Date.now())]);
+    await engine.whenIdle();
+    expect(await db.attempts.get('b2')).toBeDefined();
+
+    await db.attempts.update('b1', { parentJudge: 'wrong' }); // 見る専用のスマホで変えても
+    await engine.pushNow();
+    await engine.whenIdle();
+    expect(remote.pushes.length).toBe(0);
+    expect(remote.rowOf('attempts', 'local1')).toBeUndefined();
+    expect(JSON.parse(remote.rowOf('attempts', 'b1')!.j).parentJudge).toBeUndefined();
+  });
 });

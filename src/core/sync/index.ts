@@ -21,10 +21,12 @@ export interface SyncConfig {
   fb: FirebaseLite;
   deviceId: string;
   since: string;
+  viewOnly?: boolean; // 見る専用（受けとるだけで、何も送らない）
 }
 
 export interface SyncStatus {
   on: boolean; // 共有している
+  viewOnly: boolean; // 見る専用のスマホ（アプリを開いたときから分かるよう、localStorage にも おぼえる）
   starting: boolean;
   connected: boolean; // 保存先とつながっている
   lastAt?: number; // 最後にそろえた時刻
@@ -67,8 +69,28 @@ export async function loadSyncConfig(): Promise<SyncConfig | undefined> {
   return v?.fb?.apiKey && v.fb.projectId && v.deviceId ? v : undefined;
 }
 
+// ---- 見る専用のしるし（ホームの形を、アプリを開いたときから決めるため） ----
+const VIEW_KEY = 'fz-sync-view';
+
+function readViewFlag(): boolean {
+  try {
+    return localStorage.getItem(VIEW_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeViewFlag(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(VIEW_KEY, '1');
+    else localStorage.removeItem(VIEW_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
 // ---- ようす ----
-let status: SyncStatus = { on: false, starting: false, connected: false, pending: dirty.dirtyCount() };
+let status: SyncStatus = { on: false, viewOnly: readViewFlag(), starting: false, connected: false, pending: dirty.dirtyCount() };
 const subs = new Set<() => void>();
 
 function setStatus(p: Partial<SyncStatus>): void {
@@ -114,12 +136,19 @@ async function stopEngine(): Promise<void> {
 
 async function runEngine(cfg: SyncConfig, remote?: Remote): Promise<void> {
   await stopEngine();
-  setStatus({ on: true, starting: true, error: '', peerAt: undefined });
+  const viewOnly = !!cfg.viewOnly;
+  writeViewFlag(viewOnly);
+  setStatus({ on: true, viewOnly, starting: true, error: '', peerAt: undefined });
   const r = remote ?? (await makeRemote(cfg.fb));
   const { SyncEngine } = await import('./engine');
-  const e = new SyncEngine(r, cfg.deviceId, (rep) => {
-    if (engine === e) setStatus(rep);
-  });
+  const e = new SyncEngine(
+    r,
+    cfg.deviceId,
+    (rep) => {
+      if (engine === e) setStatus(rep);
+    },
+    { readOnly: viewOnly }
+  );
   engine = e;
   try {
     await e.start();
@@ -146,9 +175,14 @@ export async function startSyncIfConfigured(): Promise<void> {
   const cfg = await loadSyncConfig();
   if (!cfg) {
     if (dirty.isTracking()) dirty.setTracking(false);
+    if (status.viewOnly) {
+      writeViewFlag(false);
+      setStatus({ viewOnly: false });
+    }
     return;
   }
-  if (!dirty.isTracking()) dirty.setTracking(true);
+  // 見る専用のスマホは、このスマホの変更をおぼえない（送らない）
+  if (dirty.isTracking() === !!cfg.viewOnly) dirty.setTracking(!cfg.viewOnly);
   await runEngine(cfg);
 }
 
@@ -170,9 +204,10 @@ export async function markAllLocal(at = Date.now()): Promise<number> {
  * 共有を始める（このスマホで初めて／家族のスマホから受けとったURLで）。
  * ふつうは、保存先にすでにある行は保存先の方に合わせ、保存先にない行（このスマホだけの記録）を送る。
  * preferLocal のときは、同じ行は このスマホの方を残して送る（このスマホの内容に そろえる）。どちらでも記録は消えない。
+ * viewOnly のときは、見る専用（保存先の内容を受けとるだけで、このスマホからは何も送らない）。
  * 設定がまちがっているときは、ここでエラーになる（何も保存しない）。
  */
-export async function enableSync(fb: FirebaseLite, opts: { preferLocal?: boolean } = {}): Promise<void> {
+export async function enableSync(fb: FirebaseLite, opts: { preferLocal?: boolean; viewOnly?: boolean } = {}): Promise<void> {
   await stopEngine();
   const remote = await makeRemote(fb);
   try {
@@ -183,14 +218,17 @@ export async function enableSync(fb: FirebaseLite, opts: { preferLocal?: boolean
   }
   const prev = await loadSyncConfig();
   const cfg: SyncConfig = { fb, deviceId: prev?.deviceId ?? uid(), since: new Date().toISOString() };
+  if (opts.viewOnly) cfg.viewOnly = true;
   dirty.setTracking(false); // 前のしるしを消す
   await db.transaction('rw', db.syncMeta, db.syncState, async () => {
     await db.syncState.clear();
     await db.syncMeta.clear();
     await db.syncMeta.put({ key: 'config', value: cfg });
   });
-  dirty.setTracking(true);
-  if (opts.preferLocal) await markAllLocal();
+  if (!opts.viewOnly) {
+    dirty.setTracking(true);
+    if (opts.preferLocal) await markAllLocal();
+  }
   await runEngine(cfg, remote);
 }
 
@@ -202,7 +240,8 @@ export async function disableSync(): Promise<void> {
     await db.syncState.clear();
     await db.syncMeta.clear();
   });
-  setStatus({ on: false, starting: false, connected: false, error: '', lastAt: undefined, peerAt: undefined });
+  writeViewFlag(false);
+  setStatus({ on: false, viewOnly: false, starting: false, connected: false, error: '', lastAt: undefined, peerAt: undefined });
 }
 
 /** いますぐ そろえる */

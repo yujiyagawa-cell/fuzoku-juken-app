@@ -61,56 +61,81 @@ export function UrlBox({ url, label, onToast }: { url: string; label: string; on
 
 export function ShareLinks({ onToast }: { onToast: (m: string) => void }) {
   const [envUrl, setEnvUrl] = useState('');
+  const [viewUrl, setViewUrl] = useState('');
   const [making, setMaking] = useState(false);
   const sync = useSyncStatus();
   const fresh = freshLinkUrl();
 
   // 共有を始めた・やめたら、URL を作り直す（共有先が入る・入らない）
-  useEffect(() => setEnvUrl(''), [sync.on]);
+  useEffect(() => {
+    setEnvUrl('');
+    setViewUrl('');
+  }, [sync.on, sync.viewOnly]);
+
+  const make = async (viewOnly: boolean) => {
+    setMaking(true);
+    try {
+      const url = envLinkUrl(await encodeEnv(await buildEnvSnapshot({ viewOnly })));
+      if (viewOnly) setViewUrl(url);
+      else setEnvUrl(url);
+    } finally {
+      setMaking(false);
+    }
+  };
 
   return (
     <div className="stack" style={{ gap: 14, padding: '10px 0' }}>
       <p className="small muted" style={{ margin: 0, lineHeight: 1.6, fontWeight: 500 }}>
-        {sync.on
-          ? '記録の共有をしているので、設定つきURLで開いたスマホは、設定がそろい、記録の共有にも入ります。'
-          : '記録と設定は、スマホ（ブラウザ）ごとに保存されます。ほかのスマホでも同じ設定で始めたいときは「設定つきURL」を送ってください。'}
+        {sync.viewOnly
+          ? 'このスマホは見る専用です。ほかの人にも見てもらうときは「見る専用URL」を送ってください。'
+          : sync.on
+            ? '記録の共有をしているので、設定つきURLで開いたスマホは、設定がそろい、記録の共有にも入ります。見るだけの人には「見る専用URL」を送ってください。'
+            : '記録と設定は、スマホ（ブラウザ）ごとに保存されます。ほかのスマホでも同じ設定で始めたいときは「設定つきURL」を送ってください。'}
       </p>
 
-      <div className="stack" style={{ gap: 6 }}>
-        <div style={{ fontWeight: 900 }}>{sync.on ? '設定つきURL（ほかのスマホをつなぐ）' : '設定つきURL（登録ずみの設定から始める）'}</div>
-        <div className="tiny muted" style={{ fontWeight: 500, lineHeight: 1.6 }}>
-          {sync.on ? (
-            <>
-              子どもの情報・試験日・ルールなどの設定と、記録の共有先（Firebase）が入ります。開くと、すぐに共有に入ります（開いたスマホの記録・描いた絵・歌詞も、共有にそろいます）。開いたスマホに記録がすでにあるときだけ、どちらのスマホの内容に そろえるかを聞きます。
-              <b style={{ color: 'var(--warn)' }}> このURLを知っている人は、記録を見たり書きかえたりできます。家族だけに送ってください。</b>
-            </>
+      {!sync.viewOnly && (
+        <div className="stack" style={{ gap: 6 }}>
+          <div style={{ fontWeight: 900 }}>{sync.on ? '設定つきURL（ほかのスマホをつなぐ）' : '設定つきURL（登録ずみの設定から始める）'}</div>
+          <div className="tiny muted" style={{ fontWeight: 500, lineHeight: 1.6 }}>
+            {sync.on ? (
+              <>
+                子どもの情報・試験日・ルールなどの設定と、記録の共有先（Firebase）が入ります。開くと、すぐに共有に入ります（開いたスマホの記録・描いた絵・歌詞も、共有にそろいます）。開いたスマホに記録がすでにあるときだけ、どちらのスマホの内容に そろえるかを聞きます。
+                <b style={{ color: 'var(--warn)' }}> このURLを知っている人は、記録を見たり書きかえたりできます。家族だけに送ってください。</b>
+              </>
+            ) : (
+              <>
+                子どもの情報・試験日・ルール・問題カタログの評価・マイセット・うたの動画が入ります。記録（進捗）と描いた絵は入りません。開くと確認なしで、すぐにこの設定で始まります（開いたスマホの設定は置きかわります。記録は消えません）。
+                <b style={{ color: 'var(--warn)' }}> 子どもの名前と誕生日が入るので、家族だけに送ってください。</b>
+                設定を変えたら、作り直してください。
+              </>
+            )}
+          </div>
+          {envUrl ? (
+            <UrlBox url={envUrl} label="設定つきURL" onToast={onToast} />
           ) : (
-            <>
-              子どもの情報・試験日・ルール・問題カタログの評価・マイセット・うたの動画が入ります。記録（進捗）と描いた絵は入りません。開くと確認なしで、すぐにこの設定で始まります（開いたスマホの設定は置きかわります。記録は消えません）。
-              <b style={{ color: 'var(--warn)' }}> 子どもの名前と誕生日が入るので、家族だけに送ってください。</b>
-              設定を変えたら、作り直してください。
-            </>
+            <button className="btn btn-parent" disabled={making} onClick={() => make(false)}>
+              設定つきURLを作る
+            </button>
           )}
         </div>
-        {envUrl ? (
-          <UrlBox url={envUrl} label="設定つきURL" onToast={onToast} />
-        ) : (
-          <button
-            className="btn btn-parent"
-            disabled={making}
-            onClick={async () => {
-              setMaking(true);
-              try {
-                setEnvUrl(envLinkUrl(await encodeEnv(await buildEnvSnapshot())));
-              } finally {
-                setMaking(false);
-              }
-            }}
-          >
-            設定つきURLを作る
-          </button>
-        )}
-      </div>
+      )}
+
+      {sync.on && (
+        <div className="stack" style={{ gap: 6 }}>
+          <div style={{ fontWeight: 900 }}>見る専用URL（見るだけのスマホ）</div>
+          <div className="tiny muted" style={{ fontWeight: 500, lineHeight: 1.6 }}>
+            進捗・記録・カレンダー・うたと え（録音・描いた絵）・歌詞カードを、見るだけのスマホにします。開くと、すぐに共有に入ります。そのスマホからは何も送らないので、練習や設定の変更は、ほかのスマホに届きません。
+            <b style={{ color: 'var(--warn)' }}> このURLにも共有先が入っているので、家族など信頼できる人だけに送ってください。</b>
+          </div>
+          {viewUrl ? (
+            <UrlBox url={viewUrl} label="見る専用URL" onToast={onToast} />
+          ) : (
+            <button className="btn btn-outline" disabled={making} onClick={() => make(true)}>
+              見る専用URLを作る
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="stack" style={{ gap: 6 }}>
         <div style={{ fontWeight: 900 }}>ゼロから始めるURL</div>

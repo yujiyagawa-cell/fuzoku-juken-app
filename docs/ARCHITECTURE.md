@@ -153,6 +153,7 @@ src/ui/         共通部品(components.tsx)・アイコン(icons.tsx)・絵文�
   - `engine.ts`：受けとる（前に受けとった時刻 `cursor` より新しい行だけ。このスマホの未送信の変更の方が新しければ残す）→ はじめてのときは保存先の内容に合わせてから、全部の行を見直して送る（保存先にない行・変わった行・消した行）。
     共有する表の一覧を `cursor` といっしょにおぼえ、アプリの新しい版で一覧が変わったら全部受けとり直す（前の版が知らない表の行を読みとばして `cursor` だけ進めるため）。ほかの端末から届いた いちばん新しい変更の時刻（`peer`）を設定に出す。
   - 設定つきURLを、記録や設定がすでにあるスマホで開いたときは「このスマホの内容に そろえる／送ってきたスマホの内容に そろえる」を聞く。「このスマホ」なら URL の設定は入れず、`enableSync(fb, { preferLocal: true })` → `markAllLocal()` で全部の行を「いま変えた」ことにして、同じ行はこのスマホの方を残して送る（共有にしかない行は受けとる。どちらでも記録は消えない）。
+  - 見る専用URL（`EnvSnapshot.ro`）：開いたスマホは `enableSync(fb, { viewOnly: true })` → `SyncConfig.viewOnly`。`SyncEngine` の `readOnly` で受けとるだけ（見直し・送りをしない）、変わった行もおぼえない。ホームは練習のタイルを出さず「みる」メニュー（進捗・記録・ログ・ネタ帳・うたの曲・設定は保護者モードなしで開ける）。ふつうの共有のスマホで開いても見る専用にはしない。見る専用のスマホで ふつうの設定つきURLを開くと、ふつうの共有になる。アプリの中だけの決まりで、URL には共有先が入るので、家族など信頼できる人だけに渡す。
   - `firestoreRemote.ts`：Firebase SDK（共有しているときだけ動的 import。最初の読みこみを重くしない）。
   - `index.ts`：始める（`enableSync`）・やめる（`disableSync`）・アプリを開いたとき（`startSyncIfConfigured`）・ようす（`useSyncStatus`）。
 - 1行 = 1文書 `{ t, k, j: JSON 文字列, del, u: 変わった時刻 ms, d: 端末 ID, su: serverTimestamp }`。文書 ID は `表~encodeURIComponent(主キー)`。100万文字（`MAX_ROW_CHARS`）をこえる行は送らない。

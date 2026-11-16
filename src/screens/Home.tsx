@@ -2,6 +2,7 @@ import { db, useLive } from '../core/db';
 import { dayKey, examDateLabel } from '../core/dates';
 import { computeProgress, recommendItems, TARGET_READINESS, type Recommendation } from '../core/progress';
 import { useSettings } from '../core/settings';
+import { useSyncStatus } from '../core/sync';
 import type { MySet, WaitingLog } from '../core/types';
 import { MODULES, moduleById, QUESTION_TYPES } from '../modules/registry';
 import { isTypeActive, markMap } from '../modules/scope';
@@ -60,8 +61,11 @@ const PARENT_MENU: { to: string; icon: IconName; label: string; sub: string }[] 
   { to: '/settings', icon: 'sliders', label: '設定', sub: '子どもの情報・ルール・データ' }
 ];
 
-/** 保護者：全体のじゅんび度と今日のおすすめ（くわしくは進捗レベル一覧） */
-function ReadinessCard() {
+/** 見る専用のスマホのメニュー（見る画面だけ） */
+const VIEW_MENU = PARENT_MENU.filter((x) => x.to !== '/catalog');
+
+/** 保護者：全体のじゅんび度と今日のおすすめ（くわしくは進捗レベル一覧）。見る専用のスマホでは、おすすめから練習へは行かない */
+function ReadinessCard({ viewOnly = false }: { viewOnly?: boolean }) {
   const data = useLive(
     async () => {
       const [attempts, practiceLogs, waitingLogs] = await Promise.all([db.attempts.toArray(), db.practiceLogs.toArray(), db.waitingLogs.toArray()]);
@@ -76,7 +80,8 @@ function ReadinessCard() {
   const pct = Math.round(data.readiness * 100);
   const go = (r: Recommendation) => {
     const it = r.item;
-    if (it.kind === 'practice' && it.practiceItemId) navigate(`/log?item=${it.practiceItemId}`);
+    if (viewOnly) navigate('/progress');
+    else if (it.kind === 'practice' && it.practiceItemId) navigate(`/log?item=${it.practiceItemId}`);
     else if (it.moduleId) navigate(`/setup?m=${it.moduleId}${it.typeId && it.kind === 'type' ? `&types=${it.typeId}` : ''}`);
     else navigate('/progress');
   };
@@ -123,6 +128,8 @@ function ReadinessCard() {
 export function Home() {
   const { settings } = useSettings();
   const { isParent } = useMode();
+  // 見る専用のスマホ：練習のタイルは出さず、記録を見るメニューだけにする
+  const { viewOnly } = useSyncStatus();
   const mySets = useLive(() => db.mySets.toArray(), [], [] as MySet[]);
   // うたと え：かいた え の まい数と、うたった かい数
   const works = useLive(
@@ -173,11 +180,21 @@ export function Home() {
       <Header />
       <ParentStrip />
       <div className="pad" style={{ marginTop: 8 }}>
-        <h1 className="h1">{settings.childName ? `${settings.childName}さん、` : ''}きょうも がんばろう</h1>
+        <h1 className="h1">
+          {viewOnly ? `${settings.childName ? `${settings.childName}さんの ` : ''}きろく` : `${settings.childName ? `${settings.childName}さん、` : ''}きょうも がんばろう`}
+        </h1>
         <div className="small muted" style={{ marginTop: 4 }}>
           しけんは {exam.kana}
           {todayMin > 0 && <span>　きょう {todayMin}ぷん れんしゅうしました</span>}
         </div>
+        {viewOnly && (
+          <div className="card" style={{ marginTop: 10, padding: '10px 12px', background: 'var(--parent-bg)', borderColor: 'var(--parent-line)' }}>
+            <div className="small" style={{ fontWeight: 900, color: 'var(--parent)' }}>見る専用のスマホ</div>
+            <div className="tiny muted" style={{ marginTop: 2, lineHeight: 1.6, fontWeight: 500 }}>
+              共有している記録を見るだけです。練習は、子どものスマホでします。
+            </div>
+          </div>
+        )}
         <button
           onClick={() => navigate('/calendar')}
           className="row"
@@ -209,67 +226,71 @@ export function Home() {
         </button>
       </div>
 
-      <div className="tiles">
-        {MODULES.map((m) => (
-          <button key={m.id} className="tile" style={{ background: m.color.bg, boxShadow: `0 4px 0 ${m.color.shadow}` }} onClick={() => startOne(m)}>
-            <span className="tile-icon" style={{ color: m.color.icon }}>
-              <Icon name={m.icon} size={26} />
-            </span>
-            <span style={{ minWidth: 0 }}>
-              <div className="tile-name" style={{ color: m.color.ink }}>
-                {m.name}
-              </div>
-              <div className="tile-sub">{m.sub}</div>
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div className="pad row" style={{ marginTop: 14, gap: 10 }}>
-        <button className="btn btn-primary btn-big" style={{ flex: 1 }} onClick={async () => startPlan(await omakasePlan())}>
-          <Icon name="sparkle" size={24} />
-          おまかせ
-        </button>
-        <button className="btn btn-outline btn-big" style={{ flex: 1, fontSize: 18 }} onClick={() => navigate('/setup')}>
-          <Icon name="list" size={22} />
-          えらんで
-        </button>
-      </div>
-
-      {mySets.length > 0 && (
+      {!viewOnly && (
         <>
-          <h2 className="section-title">マイセット</h2>
-          <div className="list">
-            {mySets.map((s) => (
-              <div key={s.id} className="list-row">
-                <IconBadge name="check" bg="#fff2c6" color="#9a6a00" size={38} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 900 }}>{s.name}</div>
-                  <div className="tiny muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {setSummary(s)}
+          <div className="tiles">
+            {MODULES.map((m) => (
+              <button key={m.id} className="tile" style={{ background: m.color.bg, boxShadow: `0 4px 0 ${m.color.shadow}` }} onClick={() => startOne(m)}>
+                <span className="tile-icon" style={{ color: m.color.icon }}>
+                  <Icon name={m.icon} size={26} />
+                </span>
+                <span style={{ minWidth: 0 }}>
+                  <div className="tile-name" style={{ color: m.color.ink }}>
+                    {m.name}
                   </div>
-                </div>
-                {isParent && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/setup?set=${s.id}`)}>
-                    へんしゅう
-                  </button>
-                )}
-                <button className="btn btn-primary btn-sm" onClick={() => startPlan({ items: s.items, mySetId: s.id, label: s.name })}>
-                  はじめる
-                </button>
-              </div>
+                  <div className="tile-sub">{m.sub}</div>
+                </span>
+              </button>
             ))}
           </div>
-        </>
+
+          <div className="pad row" style={{ marginTop: 14, gap: 10 }}>
+            <button className="btn btn-primary btn-big" style={{ flex: 1 }} onClick={async () => startPlan(await omakasePlan())}>
+              <Icon name="sparkle" size={24} />
+              おまかせ
+            </button>
+            <button className="btn btn-outline btn-big" style={{ flex: 1, fontSize: 18 }} onClick={() => navigate('/setup')}>
+              <Icon name="list" size={22} />
+              えらんで
+            </button>
+          </div>
+
+          {mySets.length > 0 && (
+            <>
+              <h2 className="section-title">マイセット</h2>
+              <div className="list">
+                {mySets.map((s) => (
+                  <div key={s.id} className="list-row">
+                    <IconBadge name="check" bg="#fff2c6" color="#9a6a00" size={38} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 900 }}>{s.name}</div>
+                      <div className="tiny muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {setSummary(s)}
+                      </div>
+                    </div>
+                    {isParent && (
+                      <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/setup?set=${s.id}`)}>
+                        へんしゅう
+                      </button>
+                    )}
+                    <button className="btn btn-primary btn-sm" onClick={() => startPlan({ items: s.items, mySetId: s.id, label: s.name })}>
+                      はじめる
+                    </button>
+                  </div>
+                ))}
+              </div>
+              </>
+      )}
+      </>
       )}
 
-      {isParent && <ReadinessCard />}
+      {(isParent || viewOnly) && <ReadinessCard viewOnly={viewOnly && !isParent} />}
 
-      {isParent && (
+      {(isParent || viewOnly) && (
         <>
-          <h2 className="section-title">保護者メニュー</h2>
+          <h2 className="section-title">{isParent ? '保護者メニュー' : 'みる'}</h2>
           <div className="list">
-            {PARENT_MENU.map((x) => (
+            {(isParent ? PARENT_MENU : VIEW_MENU).map((x) => (
               <button
                 key={x.to}
                 className="list-row"
@@ -287,7 +308,7 @@ export function Home() {
           </div>
         </>
       )}
-      {!isParent && (
+      {!isParent && !viewOnly && (
         <p className="tiny muted pad" style={{ marginTop: 18, textAlign: 'center' }}>
           ほごしゃの かたは みぎうえを 2びょう ながおし
         </p>

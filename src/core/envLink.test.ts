@@ -1,5 +1,7 @@
+import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import { decodeEnv, encodeEnv, type EnvSnapshot } from './envLink';
+import { db } from './db';
+import { buildEnvSnapshot, decodeEnv, encodeEnv, type EnvSnapshot } from './envLink';
 import { DEFAULT_SETTINGS } from './settings';
 
 // 設定つきURL：文字列にして、もとに戻せる（日本語・記号もそのまま）
@@ -31,5 +33,17 @@ describe('設定つきURL', () => {
   it('こわれた文字列はエラー', async () => {
     await expect(decodeEnv('zAAAA')).rejects.toThrow();
     await expect(decodeEnv('x123')).rejects.toThrow();
+  });
+
+  it('見る専用URLは、共有しているときだけ作れる（共有先と見る専用のしるしが入る）', async () => {
+    await db.syncMeta.clear();
+    expect((await buildEnvSnapshot({ viewOnly: true })).ro).toBeUndefined();
+    await db.syncMeta.put({ key: 'config', value: { fb: { apiKey: 'k', projectId: 'p' }, deviceId: 'd', since: '' } });
+    const view = await buildEnvSnapshot({ viewOnly: true });
+    expect(view.ro).toBe(1);
+    expect(view.y).toEqual({ a: 'k', p: 'p' });
+    expect(await decodeEnv(await encodeEnv(view))).toEqual(view);
+    expect((await buildEnvSnapshot()).ro).toBeUndefined();
+    await db.syncMeta.clear();
   });
 });

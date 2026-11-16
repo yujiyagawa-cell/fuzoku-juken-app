@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { useSettings } from './core/settings';
+import { useSyncStatus } from './core/sync';
 import { initVoice } from './core/speech/voice';
 import { Home } from './screens/Home';
 import { CatalogScreen } from './screens/parent/CatalogScreen';
@@ -41,6 +42,8 @@ import { navigate, useRoute } from './ui/router';
 //  #/onboarding      はじめての設定
 
 const PARENT_ONLY = new Set(['progress', 'records', 'log', 'netacho', 'catalog', 'settings', 'songs', 'songcard']);
+// 見る専用のスマホ（記録の共有を見るだけ）は、見る画面を 保護者モードにしなくても開ける
+const VIEW_OK = new Set(['progress', 'records', 'log', 'netacho', 'songs', 'settings']);
 
 function ParentLock() {
   return (
@@ -61,6 +64,7 @@ export function App() {
   const { settings, ready } = useSettings();
   const route = useRoute();
   const { isParent } = useMode();
+  const { viewOnly } = useSyncStatus();
 
   useEffect(() => {
     if (ready) initVoice(settings.voiceEnabled);
@@ -91,7 +95,7 @@ export function App() {
 
   const top = route.parts[0] ?? '';
   let screen: ReactNode;
-  if (PARENT_ONLY.has(top) && !isParent) {
+  if (PARENT_ONLY.has(top) && !isParent && !(viewOnly && VIEW_OK.has(top))) {
     screen = <ParentLock />;
   } else {
     switch (top) {

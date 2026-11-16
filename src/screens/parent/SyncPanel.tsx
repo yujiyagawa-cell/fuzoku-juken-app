@@ -148,7 +148,7 @@ export function SyncPanel({ onToast }: { onToast: (m: string) => void }) {
     );
   }
 
-  const label = st.starting ? 'つないでいます…' : st.error ? 'そろっていません' : st.connected ? '共有中' : 'ネットを待っています';
+  const label = st.starting ? 'つないでいます…' : st.error ? 'そろっていません' : st.connected ? (st.viewOnly ? '見る専用で共有中' : '共有中') : 'ネットを待っています';
   const chip = st.error ? 'chip-warn' : st.connected ? 'chip-good' : '';
   return (
     <div className="stack" style={{ gap: 10, padding: '10px 0' }}>
@@ -177,6 +177,11 @@ export function SyncPanel({ onToast }: { onToast: (m: string) => void }) {
         <div className="small" style={{ color: 'var(--bad)', lineHeight: 1.6, fontWeight: 700 }}>
           {st.error}
         </div>
+      )}
+      {st.viewOnly && (
+        <p className="small" style={{ margin: 0, lineHeight: 1.6, fontWeight: 700, color: 'var(--parent)' }}>
+          このスマホは見る専用です。共有の記録を受けとって見るだけで、このスマホからは何も送りません（このスマホで練習したり設定を変えたりしても、ほかのスマホには届きません）。ふつうの共有にするときは、共有しているスマホの「設定つきURL」をこのスマホで開いてください。
+        </p>
       )}
       <p className="tiny muted" style={{ margin: 0, lineHeight: 1.6, fontWeight: 500 }}>
         記録（進捗・カレンダー・描いた絵・うたの録音）・設定・歌詞カードが、共有しているスマホでそろいます。声の種類と、保護者モードかどうかは、スマホごとです。

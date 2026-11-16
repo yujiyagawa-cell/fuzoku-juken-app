@@ -11,6 +11,8 @@ import { navigate, useRoute } from '../ui/router';
 //   すでに同じ共有に入っているスマホでは、リンクの設定は入れない（リンクの設定は古いかもしれない。共有の設定が正しい）。
 //   開いたスマホに記録や設定がすでにあり、共有先が入ったリンクのときだけ、どちらの内容に そろえるかを聞く
 //   （子どもが使ってきたスマホを、あとから共有に入れるとき。「このスマホの内容に そろえる」なら、こちらの設定が残る）。
+// ・見る専用URL（ro）：開いたスマホは共有の記録を受けとって見るだけ（何も送らない）。聞かずに すぐ入る。
+//   ふつうの共有に入っているスマホで開いても、見る専用にはしない。見る専用のスマホで ふつうの設定つきURLを開くと、ふつうの共有になる。
 //   LINE の中のブラウザで開いたときだけ止めて、Chrome で開き直すよう案内する（記録が Chrome とは別になるため）。
 // ・ゼロから始めるURL：記録を消すので、確認してから消す。
 
@@ -32,7 +34,18 @@ function inLineBrowser(): boolean {
 async function startWithLink(snap: EnvSnapshot, keepMine = false): Promise<void> {
   const fb = snap.y ? fromEnvSync(snap.y) : null;
   const cur = await loadSyncConfig();
-  if (fb && cur && cur.fb.projectId === fb.projectId && cur.fb.apiKey === fb.apiKey) return; // もう同じ共有に入っている
+  const same = !!(fb && cur && cur.fb.projectId === fb.projectId && cur.fb.apiKey === fb.apiKey);
+  if (snap.ro) {
+    // 見る専用URL：もう共有に入っているスマホは そのまま（ふつうの共有のスマホを、見る専用にはしない）
+    if (!fb || same) return;
+    await applyEnv(snap);
+    await enableSync(fb, { viewOnly: true });
+    return;
+  }
+  if (same) {
+    if (cur?.viewOnly && fb) await enableSync(fb); // 見る専用だったスマホを、ふつうの共有にする
+    return; // もう同じ共有に入っている
+  }
   if (fb && keepMine) {
     await enableSync(fb, { preferLocal: true });
     return;
@@ -79,7 +92,7 @@ export function Start() {
   useEffect(() => {
     if (!snap || hasData === null) return;
     const fb = snap.y ? fromEnvSync(snap.y) : null;
-    if (!fb || !hasData) {
+    if (!fb || !hasData || snap.ro) {
       setChoice('auto');
       return;
     }
@@ -207,7 +220,11 @@ export function Start() {
           )}
           {s.examDate && <div>試験日：{examDateLabel(s.examDate).kanji}</div>}
           <div className="small muted" style={{ lineHeight: 1.6 }}>
-            {snap.y ? '設定を入れて、記録の共有に つないでいます。少しお待ちください。' : '設定を入れています。'}
+            {snap.ro
+              ? '見る専用で、記録の共有に つないでいます。少しお待ちください。'
+              : snap.y
+                ? '設定を入れて、記録の共有に つないでいます。少しお待ちください。'
+                : '設定を入れています。'}
           </div>
         </div>
       </Shell>

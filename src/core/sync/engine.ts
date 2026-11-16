@@ -33,6 +33,7 @@ export async function readCursor(): Promise<Cursor | null> {
 export interface EngineOptions {
   debounceMs?: number; // 変わってから送るまで
   retryMs?: number; // 失敗したあと、もう一度ためすまで
+  readOnly?: boolean; // 見る専用：受けとるだけで、何も送らない
 }
 
 export class SyncEngine {
@@ -140,6 +141,7 @@ export class SyncEngine {
     if (!this.scanned) {
       // 保存先の内容を受けとったあとで、このスマホの全部の行を見直す（送りもれ・共有していないあいだの変更）
       this.scanned = true;
+      if (this.opts.readOnly) return; // 見る専用：送らない
       await this.fullScan();
       this.schedulePush(0);
     }
@@ -252,7 +254,7 @@ export class SyncEngine {
   // ---- 送る ----
 
   schedulePush(delay = this.opts.debounceMs ?? 1500): void {
-    if (this.stopped || !this.scanned) return; // 保存先の内容を受けとるまでは送らない
+    if (this.stopped || !this.scanned || this.opts.readOnly) return; // 保存先の内容を受けとるまでは送らない（見る専用は送らない）
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = undefined;
@@ -261,7 +263,7 @@ export class SyncEngine {
   }
 
   pushNow(): Promise<void> {
-    if (this.stopped || !this.scanned) return Promise.resolve();
+    if (this.stopped || !this.scanned || this.opts.readOnly) return Promise.resolve();
     if (this.pushing) {
       this.pushAgain = true;
       return this.pushing;

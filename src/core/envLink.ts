@@ -17,9 +17,10 @@ export interface EnvSnapshot {
   l?: [string, string][]; // うたの動画 [songId, url]
   k?: [string, 2 | 3][]; // 苦手な音（手で足したもの）[kana, length]
   y?: EnvSync; // 記録の共有先
+  ro?: 1; // 見る専用URL（開いたスマホは、共有の記録を受けとって見るだけ。何も送らない）
 }
 
-export async function buildEnvSnapshot(): Promise<EnvSnapshot> {
+export async function buildEnvSnapshot(opts: { viewOnly?: boolean } = {}): Promise<EnvSnapshot> {
   const s = await loadSettings();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { voiceURI, onboarded, ...rest } = s;
@@ -33,6 +34,7 @@ export async function buildEnvSnapshot(): Promise<EnvSnapshot> {
   if (k.length) snap.k = k;
   const sync = await loadSyncConfig();
   if (sync) snap.y = toEnvSync(sync.fb);
+  if (opts.viewOnly && snap.y) snap.ro = 1; // 見る専用は、共有しているときだけ作れる
   return snap;
 }
 
