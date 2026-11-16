@@ -538,6 +538,10 @@ export function SettingsScreen() {
         </Field>
       </Group>
 
+      <p className="tiny muted" style={{ textAlign: 'center', margin: '18px 0 8px', fontWeight: 500 }}>
+        アプリの版：{__APP_BUILD__}
+      </p>
+
       <Modal open={!!pending} onClose={() => setPending(null)} title="データを読み込みますか">
         {pending && (
           <div className="stack" style={{ gap: 10 }}>

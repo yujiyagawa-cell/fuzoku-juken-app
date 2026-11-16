@@ -2,8 +2,14 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// 設定のいちばん下に出す「アプリの版」（作った日時・日本時間）。スマホが新しい版になったかを見分ける
+const jst = new Date(Date.now() + 9 * 3600_000);
+const pad = (n: number) => String(n).padStart(2, '0');
+const APP_BUILD = `${jst.getUTCMonth() + 1}/${jst.getUTCDate()} ${pad(jst.getUTCHours())}:${pad(jst.getUTCMinutes())}`;
+
 export default defineConfig({
   base: './',
+  define: { __APP_BUILD__: JSON.stringify(APP_BUILD) },
   build: { chunkSizeWarningLimit: 900 },
   optimizeDeps: {
     include: ['kuromoji/src/Tokenizer.js', 'kuromoji/src/dict/DynamicDictionaries.js']
