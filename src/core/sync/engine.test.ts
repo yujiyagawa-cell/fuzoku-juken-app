@@ -26,8 +26,12 @@ class FakeRemote implements Remote {
       this.docs.set(docIdOf(r.t, r.k), d);
       out.push(d);
     }
+    // 本物と同じく、受けとり口ごとに、受けとりを始めた位置より新しい行だけ配る
     setTimeout(() => {
-      for (const l of this.listeners) l.onDocs(out, { fromServer: true });
+      for (const l of this.listeners) {
+        const docs = out.filter((d) => cursorAfter(d.at, l.after));
+        if (docs.length) l.onDocs(docs, { fromServer: true });
+      }
     }, 0);
     return out;
   }
